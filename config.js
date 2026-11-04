@@ -16,10 +16,10 @@ window.PA_TEAM = [
 ];
 // Who can see the Incentives tab (payout pool, deal bonuses, finance statement).
 window.PA_ADMINS = ["jrsmanahan@gmail.com"];
-// Who can see the Inquiries tab (names and contacts of prospects).
-window.PA_LEAD_TEAM = ["jrsmanahan@gmail.com", "anne.nu24@gmail.com"];
 // Prime Sales CRM (Supabase). The public (anon) key is safe in a web page; the CRM's own login rules still apply.
+// CRM deals whose source starts with one of these count as marketing leads. "Marketing" is ready for when you rename Inbound.
 window.PA_CRM = {
+  marketingSources: ["Inbound", "Marketing"],
   url: "https://gwclehsjbfeinfdxkuea.supabase.co",
   key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3Y2xlaHNqYmZlaW5mZHhrdWVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MTEwMTcsImV4cCI6MjEwMTQ4NzAxN30.Tmw_IiEkkgAlvsfj_GPPdN4Bf-aDEunFpwp55zmLzNc"
 };
