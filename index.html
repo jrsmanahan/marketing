@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Prime Marketing Planner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: command bar with tabs on top; Week = 7 day lanes + attention rail; Calendar/Ideas = tables; Reports = KPI scorecard */
+:root{
+  --bg:#f3f4f9; --surface:#ffffff; --sunk:#e9ebf5; --line:#d7dae8;
+  --fg:#12143a; --muted:#5b5f80;
+  --brand:#0302c9; --brand-ink:#ffffff; --navy:#0b0d4a; --red:#db0d0f;
+  --ok:#11845b; --warn:#b26a00; --review:#7a2fd0; --sched:#0b7a75;
+  --c-anne:#c2185b; --c-jacinto:#0302c9; --c-christian:#0b7a75; --c-yuan:#b26a00;
+  --f-display:"Montserrat",system-ui,sans-serif;
+  --f-body:"Source Sans 3",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0a0b22; --surface:#13153a; --sunk:#1b1e4a; --line:#2b2f63;
+  --fg:#eceefc; --muted:#a3a7cf;
+  --brand:#6f6dff; --brand-ink:#0a0b22; --navy:#05061a; --red:#ff5a5c;
+  --ok:#3fcf95; --warn:#f2b04a; --review:#b88cff; --sched:#3fd1c9;
+  --c-anne:#ff6fa6; --c-jacinto:#8f8dff; --c-christian:#3fd1c9; --c-yuan:#f2b04a;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0a0b22; --surface:#13153a; --sunk:#1b1e4a; --line:#2b2f63;
+  --fg:#eceefc; --muted:#a3a7cf;
+  --brand:#6f6dff; --brand-ink:#0a0b22; --navy:#05061a; --red:#ff5a5c;
+  --ok:#3fcf95; --warn:#f2b04a; --review:#b88cff; --sched:#3fd1c9;
+  --c-anne:#ff6fa6; --c-jacinto:#8f8dff; --c-christian:#3fd1c9; --c-yuan:#f2b04a;
+  color-scheme:dark}
+*{box-sizing:border-box}
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:1380px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:16px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;border-bottom:3px solid var(--brand);padding-bottom:12px;position:relative}
+header.top::after{content:"";position:absolute;left:0;bottom:-7px;width:72px;height:3px;background:var(--red)}
+.eyebrow{font-family:var(--f-display);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(22px,3vw,30px);margin:2px 0 0;letter-spacing:-.01em;text-wrap:balance}
+h2.sec{font-family:var(--f-display);font-size:16px;margin:0;font-weight:700}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{border:none;background:transparent;font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.04em;padding:8px 12px;border-radius:8px;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--navy);color:#fff}
+.weeknav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.range{font-family:var(--f-display);font-weight:700;font-size:14px;min-width:170px;text-align:center}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 12px}
+button:hover{border-color:var(--brand)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,tr[tabindex]:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.primary{background:var(--brand);color:var(--brand-ink);border-color:var(--brand);font-weight:600}
+.primary:hover{filter:brightness(1.08)}
+.danger{color:var(--red);border-color:var(--red);background:transparent}
+.small{padding:4px 9px;font-size:12.5px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.people{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--pc,var(--muted))}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:grid;gap:4px;align-content:start}
+.stat b{font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-size:12.5px}
+.meter{height:6px;background:var(--sunk);border-radius:4px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--brand)}
+.meter i.full{background:var(--ok)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media (max-width:1060px){.main{grid-template-columns:minmax(0,1fr)}}
+.board{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+@media (max-width:900px){.board{grid-template-columns:minmax(0,1fr)}}
+.day{background:var(--sunk);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;min-height:180px;min-width:0}
+.day.today{background:var(--surface);box-shadow:inset 0 0 0 2px var(--brand)}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;padding:2px 4px 4px}
+.dn{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.dd{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.day.today .dn{color:var(--brand)}
+.holiday{font-size:11px;color:var(--red);font-weight:600;padding:0 4px}
+.add-day{border:1px dashed var(--line);background:transparent;color:var(--muted);font-size:12.5px;padding:5px;margin-top:auto}
+.card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--pc,var(--muted));border-radius:8px;padding:7px 8px;display:grid;gap:4px;text-align:left;width:100%;min-width:0}
+.day.today .card{background:var(--bg)}
+.card .t{font-weight:600;font-size:13.5px;line-height:1.3;overflow-wrap:anywhere}
+.card .t.tbd{color:var(--muted);font-style:italic;font-weight:500}
+.meta{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font-size:11.5px;color:var(--muted)}
+.time{font-family:var(--f-mono)}
+.card.done{opacity:.62}
+.card.done .t{text-decoration:line-through}
+.st{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px;border:1px solid currentColor;white-space:nowrap}
+.st-todo{color:var(--muted)} .st-doing{color:var(--brand)} .st-review{color:var(--review)} .st-approved{color:var(--warn)} .st-scheduled{color:var(--sched)} .st-done{color:var(--ok)}
+.type{font-weight:600;color:var(--fg)}
+.seg{font-size:10.5px;padding:1px 5px;border-radius:4px;background:var(--sunk);white-space:nowrap}
+.rail{display:grid;gap:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.panel h3{font-family:var(--f-display);font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 8px;display:flex;justify-content:space-between;gap:8px}
+.panel h3 span{color:var(--muted);font-family:var(--f-mono);letter-spacing:0}
+.list{display:grid;gap:6px}
+.empty{color:var(--muted);font-size:13px}
+.legend{display:grid;gap:5px;font-size:12.5px;color:var(--muted)}
+.notice{background:var(--sunk);border-left:4px solid var(--red);padding:10px 12px;border-radius:6px;font-size:13.5px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{font-family:var(--f-display);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;padding:9px 10px;border-bottom:2px solid var(--line);background:var(--sunk);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--sunk)}
+tr.hol td:first-child{box-shadow:inset 3px 0 0 var(--red)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-size:12.5px}
+td.wide{min-width:220px}
+.linkcell a{color:var(--brand)}
+.sumrow{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--muted)}
+.sumrow b{color:var(--fg);font-variant-numeric:tabular-nums}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.krow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;padding:8px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.krow:last-child{border-bottom:none}
+.krow .lbl{font-weight:600;font-size:14px}
+.krow .val{font-family:var(--f-display);font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.krow .sub{grid-column:1/-1;color:var(--muted);font-size:12.5px}
+.pill{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:999px;margin-left:6px;vertical-align:2px}
+.p-ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.p-warn{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.p-bad{background:color-mix(in srgb,var(--red) 16%,transparent);color:var(--red)}
+.p-na{background:var(--sunk);color:var(--muted)}
+.snap{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.snap label,.f label{display:grid;gap:4px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+dialog{border:none;border-radius:14px;padding:0;width:min(600px,calc(100vw - 32px));max-height:calc(100vh - 32px);background:var(--surface);color:var(--fg);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(5,6,26,.55)}
+.dlg-head{background:var(--navy);color:#fff;padding:14px 18px;border-bottom:3px solid var(--red)}
+.dlg-head h3{margin:0;font-family:var(--f-display);font-size:17px}
+form.f{padding:16px 18px;display:grid;gap:12px;grid-template-columns:1fr 1fr}
+.f .full{grid-column:1/-1}
+@media (max-width:480px){form.f{grid-template-columns:1fr}}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+td select{padding:4px 6px;font-size:12.5px;width:auto}
+textarea{min-height:70px;resize:vertical}
+.actions{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center}
+.actions .left{margin-right:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.confirm{font-size:13px;color:var(--red)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;z-index:20}
+pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;background:var(--sunk);padding:12px;border-radius:8px;margin:0;max-height:320px;overflow:auto}
+
+/* login */
+#login{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
+#login .box{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+#login form{padding:18px;display:grid;gap:12px}
+#login label{display:grid;gap:4px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.linkbtn{border:none;background:none;color:var(--brand);padding:0;font-size:13px;text-decoration:underline;justify-self:start}
+.who{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+
+<section id="login" hidden>
+  <div class="box">
+    <div class="dlg-head"><div class="eyebrow" style="color:#c9cbf5">Prime Agritech · Marketing Team</div><h3>Marketing Planner</h3></div>
+    <form id="loginForm" novalidate>
+      <label>Email<input type="email" id="l-email" autocomplete="username" required></label>
+      <label>Password<input type="password" id="l-pass" autocomplete="current-password" required></label>
+      <p class="hint" id="l-msg" role="status" style="margin:0"></p>
+      <button type="submit" class="primary" id="l-btn">Sign in</button>
+      <button type="button" class="linkbtn" id="l-reset">Forgot password?</button>
+    </form>
+  </div>
+</section>
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div>
+      <div class="eyebrow">Prime Agritech · Marketing Team · 90-Day Campaign</div>
+      <h1>Marketing Planner</h1>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Views">
+      <button class="tab" role="tab" data-view="week" id="t-week">Week</button>
+      <button class="tab" role="tab" data-view="calendar" id="t-calendar">Content calendar</button>
+      <button class="tab" role="tab" data-view="reports" id="t-reports">KPI reports</button>
+      <button class="tab" role="tab" data-view="ideas" id="t-ideas">Content bank &amp; ideas</button>
+      <button id="exportBtn" class="small" style="margin-left:6px" title="Download everything as an Excel backup">Export to Excel</button>
+    </div>
+    <div class="who"><span id="whoName"></span><button type="button" class="small" id="signOut">Sign out</button></div>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <!-- WEEK -->
+  <section id="v-week" class="wrap" style="padding:0;gap:16px">
+    <div class="bar">
+      <div class="people" id="people" role="group" aria-label="Filter by person"></div>
+      <div class="weeknav">
+        <button id="prev" aria-label="Previous week">←</button>
+        <button id="thisweek">This week</button>
+        <span class="range" id="range"></span>
+        <button id="next" aria-label="Next week">→</button>
+        <button class="primary" id="addBtn">+ Add activity</button>
+      </div>
+    </div>
+    <section class="stats" id="stats" aria-label="This week at a glance"></section>
+    <div class="main">
+      <section class="board" id="board" aria-label="Week board"></section>
+      <aside class="rail">
+        <div class="panel"><h3>Waiting for approval <span id="revCount">0</span></h3><div class="list" id="reviewList"></div></div>
+        <div class="panel"><h3>Overdue <span id="odCount">0</span></h3><div class="list" id="overdueList"></div></div>
+        <div class="panel"><h3>Status flow</h3>
+          <div class="legend">
+            <div><span class="st st-todo">Not started</span></div>
+            <div><span class="st st-doing">Editing / in progress</span> shoot, edit, write</div>
+            <div><span class="st st-review">For approval</span> Anne checks message, Jacinto approves everyday posts. Doc Jorge approves advertorials, client stories, projects, pricing</div>
+            <div>Sending an item from For approval back to Editing counts as one revision.</div>
+            <div><span class="st st-approved">Approved</span> final go signal</div>
+            <div><span class="st st-scheduled">Scheduled</span> queued in Meta</div>
+            <div><span class="st st-done">Posted / done</span> live or completed</div>
+          </div>
+          <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin-top:10px"><input type="checkbox" id="hideDone" style="width:auto"> Hide posted and done</label>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- CALENDAR -->
+  <section id="v-calendar" hidden style="display:grid;gap:12px">
+    <div class="bar">
+      <h2 class="sec" id="calTitle">Content calendar</h2>
+      <div class="weeknav">
+        <button id="cPrev" aria-label="Previous month">←</button>
+        <span class="range" id="cRange"></span>
+        <button id="cNext" aria-label="Next month">→</button>
+        <button class="primary" id="addPost">+ Add post</button>
+      </div>
+    </div>
+    <details class="panel" id="planPanel">
+      <summary style="cursor:pointer;font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase">Campaign plan &amp; posting rules</summary>
+      <div id="planView" style="white-space:pre-wrap;font-size:14px;margin-top:10px;max-width:80ch"></div>
+      <textarea id="planEdit" hidden style="margin-top:10px;min-height:320px;font-size:13.5px"></textarea>
+      <div class="actions" style="margin-top:8px"><span class="hint" id="planMeta"></span><button type="button" class="small" id="planEditBtn">Edit</button><button type="button" class="small" id="planCancel" hidden>Cancel</button><button type="button" class="small primary" id="planSave" hidden>Save</button></div>
+    </details>
+    <div class="sumrow" id="calSum"></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Week</th><th>Date</th><th>Format</th><th>Segment</th><th>Topic</th><th>CTA</th><th>Status</th><th>Link</th><th class="num">Views</th><th class="num">Engage.</th></tr></thead>
+      <tbody id="calBody"></tbody>
+    </table></div>
+    <p class="hint">Weekly plan: Tue reel · Thu photo · Sat photo · Sun reel. A PH holiday post replaces that day's regular post. Add views and engagement to each post a few days after it goes live so the reports can use them.</p>
+  </section>
+
+  <!-- REPORTS -->
+  <section id="v-reports" hidden style="display:grid;gap:14px">
+    <div class="bar">
+      <h2 class="sec">KPI report</h2>
+      <div class="weeknav">
+        <label for="period" class="eyebrow">Period</label>
+        <select id="period" style="width:auto"></select>
+        <button id="copyReport">Copy report text</button>
+      </div>
+    </div>
+    <div class="panel" id="snapPanel">
+      <h3>Month-end numbers for <span id="snapMonth"></span></h3>
+      <p class="hint" style="margin-bottom:10px">Facebook numbers from Meta Business Suite, subscribers from YouTube Studio, inquiries from the inbox, Gmail and lead tracker. Enter them at month end. Posting, schedule and edit approvals are counted from the planner.</p>
+      <form class="snap" id="snapForm">
+        <div id="snapFields" class="snap" style="grid-column:1/-1"></div>
+        <label style="grid-column:1/-1">Notes for the report<textarea id="s-notes" placeholder="What worked, what didn't, best post, anything Doc Jorge should know"></textarea></label>
+        <div class="actions"><span class="hint" id="snapSaved"></span><button type="submit" class="primary" id="snapSave">Save numbers</button></div>
+      </form>
+    </div>
+    <div class="kgrid" id="kpiGrid"></div>
+    <div class="panel"><h3>Report text <span>paste into email or Messenger</span></h3><pre class="report" id="reportText"></pre></div>
+  </section>
+
+  <!-- IDEAS -->
+  <section id="v-ideas" hidden style="display:grid;gap:16px">
+    <div class="bar"><h2 class="sec">Content bank, for shoot</h2><span class="hint">Pick an idea and plan the shoot. It goes on the week board.</span></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th class="num">#</th><th>Content idea</th><th>Segment</th><th>Pillar</th><th>Ideal month</th><th>Notes</th><th>Status</th><th></th></tr></thead>
+      <tbody id="bankBody"></tbody>
+    </table></div>
+    <form class="bar" id="bankAdd" style="justify-content:flex-start">
+      <input id="b-idea" placeholder="New content idea" style="flex:2 1 240px">
+      <select id="b-seg" style="flex:1 1 140px"><option>Breeder Upgrade</option><option>Broiler Farm</option></select>
+      <select id="b-pillar" style="flex:1 1 140px"><option>Build Stories</option><option>Proof &amp; Numbers</option><option>Expert Know-How</option><option>People of Prime</option></select>
+      <button class="primary" type="submit">Add to bank</button>
+    </form>
+    <div class="bar"><h2 class="sec">Marketing ideas</h2></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th class="num">#</th><th>Category</th><th>Idea</th><th>What it is</th><th>Segment</th><th>Timing</th><th>Status</th></tr></thead>
+      <tbody id="ideaBody"></tbody>
+    </table></div>
+  </section>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dlg-head"><h3 id="dlgTitle">Add activity</h3></div>
+  <form class="f" id="form" novalidate>
+    <label class="full">What / topic
+      <input id="f-title" maxlength="200" placeholder="e.g. Shoot B-roll at the Quezon breeder farm">
+    </label>
+    <label>Type<select id="f-type"></select></label>
+    <label>Who<select id="f-owner"></select></label>
+    <label>Date<input type="date" id="f-date" required></label>
+    <label>Time (optional)<input type="time" id="f-time"></label>
+    <label>Status<select id="f-status"></select></label>
+    <label>Segment
+      <select id="f-seg"><option value="">None</option><option>Breeder Upgrade</option><option>Broiler Farm</option><option>All Audiences</option></select>
+    </label>
+    <label class="full post-only">CTA<input id="f-cta" maxlength="120"></label>
+    <label class="full post-only">Caption<textarea id="f-caption" maxlength="6000" style="min-height:110px"></textarea></label>
+    <label class="full post-only">Post link<input id="f-link" maxlength="400" placeholder="https://www.facebook.com/…"></label>
+    <label class="post-only">Views<input type="number" min="0" id="f-views" inputmode="numeric"></label>
+    <label class="post-only">Engagement<input type="number" min="0" id="f-eng" inputmode="numeric" placeholder="reactions + comments + shares"></label>
+    <label class="full nonpost">Location / link<input id="f-where" maxlength="300" placeholder="Farm, venue, CapCut or Drive link"></label>
+    <label class="full">Notes<textarea id="f-notes" maxlength="2000"></textarea></label>
+    <label class="post-only">Revision rounds<input type="number" min="0" id="f-rev" inputmode="numeric" placeholder="counted automatically"></label>
+    <label class="post-only" style="display:flex;gap:8px;align-items:center;align-self:end;color:var(--fg)"><input type="checkbox" id="f-dj" style="width:auto"> Needs Doc Jorge's approval</label>
+    <p class="full hint" id="editedBy" style="margin:0"></p>
+    <label class="full" id="repeatWrap">Repeat
+      <select id="f-repeat"><option value="1">Just once</option><option value="4">Every week for 4 weeks</option><option value="13">Every week for 13 weeks</option></select>
+    </label>
+    <div class="actions">
+      <div class="left">
+        <button type="button" class="danger" id="delBtn" hidden>Delete</button>
+        <span class="confirm" id="delConfirm" hidden>Delete this? <button type="button" class="danger" id="delYes">Yes, delete</button> <button type="button" id="delNo">Keep</button></span>
+      </div>
+      <button type="button" id="cancelBtn">Cancel</button>
+      <button type="submit" class="primary" id="saveBtn">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<!-- ===== EDIT THIS BLOCK: paste your Firebase web app config and the team list ===== -->
+<script>
+window.PA_FIREBASE_CONFIG = {
+  apiKey: "PASTE_API_KEY",
+  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+  projectId: "PASTE_PROJECT_ID",
+  storageBucket: "PASTE_PROJECT_ID.appspot.com",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId: "PASTE_APP_ID"
+};
+// Who can sign in, and the name shown in edit history. Use the same emails in firestore.rules.
+window.PA_TEAM = [
+  { name: "Jacinto",   email: "jrsmanahan@gmail.com" },
+  { name: "Anne",      email: "ANNE_EMAIL" },
+  { name: "Christian", email: "CHRISTIAN_EMAIL" },
+  { name: "Yuan",      email: "YUAN_EMAIL" }
+];
+</script>
+<!-- ===== end of block ===== -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script type="application/json" id="seed">{"activities":{"post-2026-10-29":{"caption":"Not your usual breeder farm.\n🎥 Part 3: Join our President, Doc Jorge Manahan, DVM, and our team as we visit our state-of-the-art, tunnel-ventilated breeder farm project in Quezon Province, Philippines in preparation for the next batch loading.\nAt Prime Agritech Corporation we build farm businesses, not just buildings.\n📩 Send us a message today!\n#poultry #agribusiness #PrimeAgritech #philippines #breederfarm","createdAt":1,"cta":"Book a free farm upgrade consult","date":"2026-10-29","link":"","notes":"Value-led proof of work/expertise","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"scheduled","time":"","title":"Part 3 - La Suerte Breeder Farm Visit","type":"Reel post","where":""},"post-2026-11-01":{"caption":"","createdAt":2,"cta":"Holiday greeting (no sales CTA)","date":"2026-11-01","link":"https://www.facebook.com/share/v/1c6qnbjnk8/","notes":"Holiday photo post (Sunday, extra post) · N/A Holiday - For Pinoy Audience Relevance","owner":"Anne","segment":"All Audiences","source":"excel","status":"scheduled","time":"","title":"All Saints' Day","type":"Photo post","where":""},"post-2026-11-02":{"caption":"","createdAt":3,"cta":"Holiday greeting (no sales CTA)","date":"2026-11-02","link":"","notes":"Holiday photo post · N/A Holiday - For Pinoy Audience Relevance","owner":"Anne","segment":"All Audiences","source":"excel","status":"scheduled","time":"","title":"All Souls' Day","type":"Photo post","where":""},"post-2026-11-03":{"caption":"Sold Before It’s Even Built\n\nThe continued expansion of broiler production is driving a proportional increase in the demand for day-old chicks (DOCs).\n\nWith breeder capacity remaining limited, many integrators are actively looking for contract partners and hatching egg suppliers, including contract-to-breed (CTB) breeder partners. Some are even turning to imports to meet their growing DOC requirements.\n\nAs demand for chicken meat continues to rise, the need for greater breeder capacity becomes increasingly important. While major industry players continue to invest in broiler production because of its relatively faster production cycle and quicker business turnover, breeder farming presents another opportunity to support the industry’s growing needs.\n\nIn Part 4 of our breeder farm tour, featured on Agribusiness, Dr. Jorge Manahan takes us inside an operational breeder farm project that we made. He compares the profitability of breeder and broiler farming, explains the importance of proper cleaning and sanitation, and highlights the differences between American and European farm layouts. For Doc Jorge, it is more than just building farms. It is about sharing practical knowledge and helping farmers establish businesses that can provide lasting opportunities for their families.\n\nAt Prime Agritech Corporation, we build your farm business, not just buildings.","createdAt":4,"cta":"Book a free farm upgrade consult","date":"2026-11-03","link":"","notes":"Value-led proof of work/expertise - For final revision","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"scheduled","time":"","title":"Part 4 - La Suerte Breeder Farm Visit","type":"Reel post","where":""},"post-2026-11-05":{"caption":"Bigger Profits Start with Better Poultry Housing\n\nChristmas season is fast approaching, and Filipino families are getting ready for Noche Buena. For many, that means chicken on the table: lechong manok or fried chicken for the whole family.\n\nWhat many people don’t see is that a lot of these chickens come from small farmers. More than 4 in every 10 chickens in the Philippines are raised on small backyard farms, according to the Philippine Statistics Authority. These are farmers who wake up before sunrise, and treat every peso of feed as an investment in their family’s future. They deserve to be part of the industry’s future, not left behind by it.\n\nThis was the message Dr. Jorge Manahan, Managing Director of Prime Agritech Corporation, brought to the Pampanga Chamber of Commerce and Industry, Inc. (PamCham) Food Summit 2026.\n\nSpeaking on “Modern Broiler Housing for Small-Scale Production,” Doc Jorge shared how better poultry housing can help small farms improve their efficiency, and productivity. For him, it is an advocacy. A way of paying forward decades of experience in poultry farm building to the farmers who need it most.\n\nModernizing a farm doesn’t mean you have to start big right away. It's making smarter decisions, raising chickens in a better environment, and getting more out of the resources you already have. A successful poultry business isn’t measured only by how many birds you raise, but by how well you take care of your chickens and your farm.\n\nThis Christmas season, and in the years ahead, we hope more Filipino poultry raisers can see it for themselves. The future of their farm may begin with a better-built one.\n\nAt Prime Agritech Corporation, we build your farm business, not just buildings.\n\n#agribusiness #broilerfarming #poultry #nofarmersnofood","createdAt":5,"cta":"Book a free initial farm consult","date":"2026-11-05","link":"","notes":"Doc Jorge's credibility / NO SALES EMAIL","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"scheduled","time":"","title":"PAMCHAM Seminar","type":"Photo post","where":""},"post-2026-11-07":{"caption":"","createdAt":6,"cta":"Book a free initial farm consult","date":"2026-11-07","link":"","notes":"Client support proof · Pending caption","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"review","time":"","title":"Land Reclassification Photo (Repurposed with branded banner)","type":"Photo post","where":""},"post-2026-11-08":{"caption":"","createdAt":7,"cta":"Book a free farm upgrade consult","date":"2026-11-08","link":"","notes":"Value-led proof of work/expertise · Pending caption","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"approved","time":"","title":"Part 5 - La Suerte Breeder Farm Visit","type":"Reel post","where":""},"post-2026-11-10":{"caption":"","createdAt":8,"cta":"Book a free farm upgrade consult","date":"2026-11-10","link":"","notes":"Value-led proof of work/expertise · Pending caption","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"approved","time":"","title":"Part 6 - La Suerte Breeder Farm Visit","type":"Reel post","where":""},"post-2026-11-12":{"caption":"","createdAt":9,"cta":"Book a free initial farm consult","date":"2026-11-12","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"Ventilation Presentation with QPLC (Repurposed Photo doc jorge only)","type":"Photo post","where":""},"post-2026-11-14":{"caption":"","createdAt":10,"cta":"Book a free farm upgrade consult","date":"2026-11-14","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"doing","time":"","title":"La Suerte Farm Visit (Check if has a group photo)","type":"Photo post","where":""},"post-2026-11-15":{"caption":"","createdAt":11,"cta":"Book a free initial farm consult","date":"2026-11-15","link":"","notes":"Value-led proof of work/expertise","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"doing","time":"","title":"MTC Heater - Original Plan by PAC","type":"Reel post","where":""},"post-2026-11-17":{"caption":"","createdAt":12,"cta":"Book a free farm upgrade consult","date":"2026-11-17","link":"","notes":"Value-led proof of work/expertise","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"doing","time":"","title":"Part 1 - Top 1 GP Farm (Repurposed Video)","type":"Reel post","where":""},"post-2026-11-19":{"caption":"","createdAt":13,"cta":"Book a free farm upgrade consult","date":"2026-11-19","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"Part 2 - Top 1 GP Farm (Repurposed Video)","type":"Photo post","where":""},"post-2026-11-21":{"caption":"","createdAt":14,"cta":"Book a free initial farm consult","date":"2026-11-21","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"Part 3 - Top 1 GP Farm (Repurposed Video)","type":"Photo post","where":""},"post-2026-11-22":{"caption":"","createdAt":15,"cta":"Book a free farm upgrade consult","date":"2026-11-22","link":"","notes":"For scripting/VO/Final Revisions","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"doing","time":"","title":"Mabalacat Warehouse Promotional Video","type":"Reel post","where":""},"post-2026-11-24":{"caption":"","createdAt":16,"cta":"Book a free farm upgrade consult","date":"2026-11-24","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2026-11-26":{"caption":"","createdAt":17,"cta":"Book a free initial farm consult","date":"2026-11-26","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2026-11-28":{"caption":"","createdAt":18,"cta":"Book a free farm upgrade consult","date":"2026-11-28","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2026-11-29":{"caption":"","createdAt":19,"cta":"Book a free farm upgrade consult","date":"2026-11-29","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2026-11-30":{"caption":"","createdAt":20,"cta":"Holiday greeting (no sales CTA)","date":"2026-11-30","link":"","notes":"Holiday photo post · N/A Holiday - For Pinoy Audience Relevance","owner":"Anne","segment":"All Audiences","source":"excel","status":"todo","time":"","title":"Bonifacio Day","type":"Photo post","where":""},"post-2026-12-01":{"caption":"","createdAt":21,"cta":"Book a free farm upgrade consult","date":"2026-12-01","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2026-12-03":{"caption":"","createdAt":22,"cta":"Book a free farm upgrade consult","date":"2026-12-03","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2026-12-05":{"caption":"","createdAt":23,"cta":"Book a free farm upgrade consult","date":"2026-12-05","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2026-12-06":{"caption":"","createdAt":24,"cta":"Book a free initial farm consult","date":"2026-12-06","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2026-12-08":{"caption":"","createdAt":25,"cta":"Holiday greeting (no sales CTA)","date":"2026-12-08","link":"","notes":"Holiday photo post replaces the Tuesday reel","owner":"Anne","segment":"All Audiences","source":"excel","status":"todo","time":"","title":"Feast of the Immaculate Conception","type":"Photo post","where":""},"post-2026-12-10":{"caption":"","createdAt":26,"cta":"Book a free initial farm consult","date":"2026-12-10","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2026-12-12":{"caption":"","createdAt":27,"cta":"Book a free farm upgrade consult","date":"2026-12-12","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2026-12-13":{"caption":"","createdAt":28,"cta":"Book a free farm upgrade consult","date":"2026-12-13","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2026-12-15":{"caption":"","createdAt":29,"cta":"Book a free farm upgrade consult","date":"2026-12-15","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2026-12-17":{"caption":"","createdAt":30,"cta":"Book a free farm upgrade consult","date":"2026-12-17","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2026-12-19":{"caption":"","createdAt":31,"cta":"Book a free initial farm consult","date":"2026-12-19","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2026-12-20":{"caption":"","createdAt":32,"cta":"Book a free farm upgrade consult","date":"2026-12-20","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2026-12-22":{"caption":"","createdAt":33,"cta":"Book a free initial farm consult","date":"2026-12-22","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2026-12-24":{"caption":"","createdAt":34,"cta":"Holiday greeting (no sales CTA)","date":"2026-12-24","link":"","notes":"Christmas video greeting from the Prime team","owner":"Anne","segment":"All Audiences","source":"excel","status":"todo","time":"","title":"Christmas Eve","type":"Reel post","where":""},"post-2026-12-25":{"caption":"","createdAt":35,"cta":"Holiday greeting (no sales CTA)","date":"2026-12-25","link":"","notes":"Prime team group photo from the holiday shoot","owner":"Anne","segment":"All Audiences","source":"excel","status":"todo","time":"","title":"Christmas Day","type":"Photo post","where":""},"post-2026-12-26":{"caption":"","createdAt":36,"cta":"Book a free farm upgrade consult","date":"2026-12-26","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2026-12-27":{"caption":"","createdAt":37,"cta":"Book a free initial farm consult","date":"2026-12-27","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2026-12-29":{"caption":"","createdAt":38,"cta":"Book a free farm upgrade consult","date":"2026-12-29","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2026-12-30":{"caption":"","createdAt":39,"cta":"Holiday greeting (no sales CTA)","date":"2026-12-30","link":"","notes":"Holiday photo post replaces the Wednesday reel","owner":"Anne","segment":"All Audiences","source":"excel","status":"todo","time":"","title":"Rizal Day","type":"Photo post","where":""},"post-2026-12-31":{"caption":"","createdAt":40,"cta":"Holiday greeting (no sales CTA)","date":"2026-12-31","link":"","notes":"New Year video greeting from the Prime team","owner":"Anne","segment":"All Audiences","source":"excel","status":"todo","time":"","title":"Last Day of the Year","type":"Reel post","where":""},"post-2027-01-01":{"caption":"","createdAt":41,"cta":"Holiday greeting (no sales CTA)","date":"2027-01-01","link":"","notes":"Prime team group photo from the holiday shoot","owner":"Anne","segment":"All Audiences","source":"excel","status":"todo","time":"","title":"New Year's Day","type":"Photo post","where":""},"post-2027-01-02":{"caption":"","createdAt":42,"cta":"Book a free farm upgrade consult","date":"2027-01-02","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2027-01-03":{"caption":"","createdAt":43,"cta":"Book a free farm upgrade consult","date":"2027-01-03","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2027-01-05":{"caption":"","createdAt":44,"cta":"Book a free farm upgrade consult","date":"2027-01-05","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2027-01-07":{"caption":"","createdAt":45,"cta":"Book a free farm upgrade consult","date":"2027-01-07","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2027-01-09":{"caption":"","createdAt":46,"cta":"Book a free farm upgrade consult","date":"2027-01-09","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2027-01-10":{"caption":"","createdAt":47,"cta":"Book a free initial farm consult","date":"2027-01-10","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2027-01-12":{"caption":"","createdAt":48,"cta":"Book a free initial farm consult","date":"2027-01-12","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2027-01-14":{"caption":"","createdAt":49,"cta":"Book a free farm upgrade consult","date":"2027-01-14","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2027-01-16":{"caption":"","createdAt":50,"cta":"Book a free farm upgrade consult","date":"2027-01-16","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2027-01-17":{"caption":"","createdAt":51,"cta":"Book a free farm upgrade consult","date":"2027-01-17","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2027-01-19":{"caption":"","createdAt":52,"cta":"Book a free farm upgrade consult","date":"2027-01-19","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2027-01-21":{"caption":"","createdAt":53,"cta":"Book a free farm upgrade consult","date":"2027-01-21","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2027-01-23":{"caption":"","createdAt":54,"cta":"Book a free initial farm consult","date":"2027-01-23","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2027-01-24":{"caption":"","createdAt":55,"cta":"Book a free farm upgrade consult","date":"2027-01-24","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2027-01-26":{"caption":"","createdAt":56,"cta":"Book a free farm upgrade consult","date":"2027-01-26","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""},"post-2027-01-28":{"caption":"","createdAt":57,"cta":"Book a free initial farm consult","date":"2027-01-28","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2027-01-30":{"caption":"","createdAt":58,"cta":"Book a free farm upgrade consult","date":"2027-01-30","link":"","notes":"","owner":"Anne","segment":"Breeder Upgrade","source":"excel","status":"todo","time":"","title":"","type":"Photo post","where":""},"post-2027-01-31":{"caption":"","createdAt":59,"cta":"Book a free initial farm consult","date":"2027-01-31","link":"","notes":"","owner":"Anne","segment":"Broiler Farm","source":"excel","status":"todo","time":"","title":"","type":"Reel post","where":""}},"bank":{"b01":{"idea":"Visits to past projects in Visayas & Mindanao","month":"Month 2 (Dec)","n":1,"notes":"Shows we also build in VisMin (big share of our audience)","pillar":"Build Stories","segment":"Broiler Farm","status":"In bank"},"b02":{"idea":"Warehouse Promotional Video","month":"Month 4 Onwards","n":2,"notes":"Done with the shoot. For scripting and VO. 1 promotional video, 1 video interview with mama amor","pillar":"Proof & Numbers","segment":"Breeder Upgrade","status":"In bank"},"b03":{"idea":"MTC projects showcase (JT, JQ, QPLC, UFI)","month":"Month 2 (Dec)","n":3,"notes":"Inform that we also do MTC","pillar":"Proof & Numbers","segment":"Broiler Farm","status":"In bank"},"b04":{"idea":"Q&A: Why go for CCS4 and MTC?","month":"Month 1 (Nov)","n":4,"notes":"","pillar":"Expert Know-How","segment":"Broiler Farm","status":"In bank"},"b05":{"idea":"Q&A: CCS4 vs MTC, which is better?","month":"Month 1 (Nov)","n":5,"notes":"Comparative","pillar":"Expert Know-How","segment":"Broiler Farm","status":"In bank"},"b06":{"idea":"Q&A: Personal stance, CCS4 or MTC?","month":"Month 2 (Dec)","n":6,"notes":"","pillar":"Expert Know-How","segment":"Broiler Farm","status":"In bank"},"b07":{"idea":"Choosing MTC vs CCS4: limited budget vs ample capital","month":"Month 2 (Dec)","n":7,"notes":"","pillar":"Expert Know-How","segment":"Broiler Farm","status":"In bank"},"b08":{"idea":"If MTC, how do you deal with manure?","month":"Month 3 (Jan)","n":8,"notes":"","pillar":"Expert Know-How","segment":"Broiler Farm","status":"In bank"},"b09":{"idea":"CCS3 to CCS4 conversion of a top-ranking farm (Cosmopolitan Farm)","month":"Month 3 (Jan)","n":9,"notes":"Get client OK first","pillar":"Proof & Numbers","segment":"Broiler Farm","status":"In bank"},"b10":{"idea":"Why investors should consider breeders","month":"Month 1 (Nov)","n":10,"notes":"","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b11":{"idea":"Broilers vs breeders as a business","month":"Month 1 (Nov)","n":11,"notes":"","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b12":{"idea":"Contract breeder vs commercial breeder","month":"Month 1 (Nov)","n":12,"notes":"","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b13":{"idea":"Contract growing vs contract breeding","month":"Month 1 (Nov)","n":13,"notes":"","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b14":{"idea":"Commercial broilers vs breeders","month":"Month 1 (Nov)","n":14,"notes":"","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b15":{"idea":"Contract growing vs commercial growing (broilers)","month":"Month 2 (Dec)","n":15,"notes":"","pillar":"Expert Know-How","segment":"Broiler Farm","status":"In bank"},"b16":{"idea":"Commercial vs contract: differences in broilers and in breeders","month":"Month 2 (Dec)","n":16,"notes":"Can combine #11 to #14 into one YouTube video","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b17":{"idea":"Broiler or breeder farm: which one to start?","month":"Month 1 (Nov)","n":17,"notes":"","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b18":{"idea":"European layout vs American layout","month":"Month 1 (Nov)","n":18,"notes":"","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b19":{"idea":"Meet and greet with the Prime team","month":"Month 2 (Dec)","n":19,"notes":"","pillar":"People of Prime","segment":"Breeder Upgrade","status":"In bank"},"b20":{"idea":"New, ongoing and completed construction updates","month":"Month 1 (Nov)","n":20,"notes":"Keep the 70/30 mix of breeder and broiler builds","pillar":"Build Stories","segment":"Breeder Upgrade","status":"In bank"},"b21":{"idea":"Operational farm tours and client testimonials","month":"Month 3 (Jan)","n":21,"notes":"Get client OK first","pillar":"Proof & Numbers","segment":"Breeder Upgrade","status":"In bank"},"b22":{"idea":"Interactions with old clients (farm visits, after deal closing)","month":"Month 2 (Dec)","n":22,"notes":"","pillar":"People of Prime","segment":"Breeder Upgrade","status":"In bank"},"b23":{"idea":"Attending events and expos","month":"Month 2 (Dec)","n":23,"notes":"Film from the travel calendar","pillar":"People of Prime","segment":"Breeder Upgrade","status":"In bank"},"b24":{"idea":"Product offerings: tech upgrades and competitive advantages","month":"Month 3 (Jan)","n":24,"notes":"No critical details","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b25":{"idea":"Turnkey capabilities: conceptual plan, land development, construction","month":"Month 3 (Jan)","n":25,"notes":"No critical details","pillar":"Build Stories","segment":"Breeder Upgrade","status":"In bank"},"b26":{"idea":"Case studies: problems during construction and how we solved them","month":"Month 3 (Jan)","n":26,"notes":"Real experiences, emotional angle, builds credibility","pillar":"Build Stories","segment":"Breeder Upgrade","status":"In bank"},"b27":{"idea":"Repeat clients: farm performance that led to expansion with Prime","month":"Month 3 (Jan)","n":27,"notes":"Include list of clients","pillar":"Proof & Numbers","segment":"Breeder Upgrade","status":"In bank"},"b28":{"idea":"Case-to-case advice on client decisions","month":"Month 2 (Dec)","n":28,"notes":"","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b29":{"idea":"Start-up process in putting up a farm","month":"Month 3 (Jan)","n":29,"notes":"","pillar":"Expert Know-How","segment":"Broiler Farm","status":"In bank"},"b30":{"idea":"Considerations and requirements to start a farm project","month":"Month 1 (Nov)","n":30,"notes":"","pillar":"Expert Know-How","segment":"Broiler Farm","status":"In bank"},"b31":{"idea":"Land development: pakyaw vs per-hour rent, other options, risks of an inexperienced developer","month":"Month 3 (Jan)","n":31,"notes":"","pillar":"Expert Know-How","segment":"Broiler Farm","status":"In bank"},"b32":{"idea":"Pointers in choosing land for poultry farming","month":"Month 1 (Nov)","n":32,"notes":"","pillar":"Expert Know-How","segment":"Broiler Farm","status":"In bank"},"b33":{"idea":"Current state of poultry farming in the Philippines (SWOT)","month":"Month 2 (Dec)","n":33,"notes":"","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b34":{"idea":"Emotional client stories","month":"Month 3 (Jan)","n":34,"notes":"Get client OK first","pillar":"Proof & Numbers","segment":"Breeder Upgrade","status":"In bank"},"b35":{"idea":"How Prime Agritech started: the story behind it","month":"Month 2 (Dec)","n":35,"notes":"Month 2 of the plan: reintroduce Doc Jorge","pillar":"People of Prime","segment":"Breeder Upgrade","status":"In bank"},"b36":{"idea":"Founder Story Series","month":"Month 2 (Dec)","n":36,"notes":"Doc Jorge Humble Beginnings","pillar":"People of Prime","segment":"Breeder Upgrade","status":"In bank"},"b37":{"idea":"Then vs Now Project Throwback","month":"Month 2 (Dec)","n":37,"notes":"","pillar":"Proof & Numbers","segment":"Breeder Upgrade","status":"In bank"},"b38":{"idea":"Things your farm is trying to tell you","month":"Month 4 Onwards","n":38,"notes":"turn tech knowledge into simple visual clues that farmers can understand. \neg - what uneven bird distribution might tell u. end with - have u noticed this in your own set up?","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"},"b39":{"idea":"Equipment Product Line Campaign","month":"Month 4 Onwards","n":39,"notes":"value led campaign on how to use the equipment, why it matters, etc","pillar":"Expert Know-How","segment":"Breeder Upgrade","status":"In bank"}},"ideas":{"i01":{"category":"Financing Partners","idea":"Banks x Prime loan tie-up","n":1,"segment":"Both","status":"For discussion","timing":"Day 90+","what":"Partner with banks so clients can finance their farm build with Prime"},"i02":{"category":"Financing Partners","idea":"Loan and credit partner referrals","n":2,"segment":"Both","status":"For discussion","timing":"Day 90+","what":"Referrals from loan agents, coops and lending teams (DBP, Landbank, ACPC), supported by educational content"},"i03":{"category":"Referral Network","idea":"Poultry integrators","n":3,"segment":"Both","status":"For discussion","timing":"Day 90+","what":"Partner with integrators to refer growers who need to build or upgrade - not sure if on going already pls confirm"},"i04":{"category":"Referral Network","idea":"Land and farm professionals","n":4,"segment":"Both","status":"For discussion","timing":"Month 1","what":"Referrals from agri land brokers, rural property agents, agri engineers and consultants, feed and equipment distributors, and existing farm owners"},"i05":{"category":"Referral Network","idea":"Accountants, bookkeepers and business registration consultants","n":5,"segment":"Broiler Farm","status":"For discussion","timing":"Day 90+","what":"Their clients planning new agri businesses may need a contractor. Give them a simple company profile and the poultry projects we handle"},"i06":{"category":"Referral Network","idea":"Agri schools, new vets and newly licensed agriculturists/Engrs","n":6,"segment":"Both","status":"For discussion","timing":"Day 90+","what":"Adapt TeamAgri's vet-referral strategy - but with with fresh DVM, RAgr, Engr graduates/licensees - those who are just starting their careers."},"i07":{"category":"Referral Network","idea":"LGU partnerships","n":7,"segment":"Both","status":"For discussion","timing":"Day 90+","what":"Work with LGUs on their agri programs and farm investment in their area"},"i08":{"category":"Referral Network","idea":"Backyard farm vloggers","n":8,"segment":"Breeder Upgrade","status":"For discussion","timing":"Month 2","what":"Reach out to backyard farm vloggers and feature farm upgrades - e.g: Millions in Farming"},"i09":{"category":"Events & Education","idea":"Poultry investment seminars and site tours","n":9,"segment":"Both","status":"Ongoing","timing":"Month 1","what":"Seminars plus visits to farms we built"},"i10":{"category":"Events & Education","idea":"Monthly poultry business masterclass","n":10,"segment":"Both","status":"Approved","timing":"Day 90+","what":"Regular class on starting and running a poultry business - LIVE Session"},"i11":{"category":"Events & Education","idea":"Corporate employee entrepreneurship programs","n":11,"segment":"Broiler Farm","status":"For discussion","timing":"Day 90+","what":"Offer seminars to HR teams and employee coops as part of financial wellness.\nAngle: Exploring a Business Beyond Your 9-to-5"},"i12":{"category":"Events & Education","idea":"Agricultural Training Institute Partneship","n":12,"segment":"Both","status":"For discussion","timing":"Day 90+","what":"provides training to visMin"},"i13":{"category":"Campaigns","idea":"OFW to Poultry Entrepreneur campaign","n":13,"segment":"Broiler Farm","status":"For discussion","timing":"Month 3","what":"Content and offers for OFWs planning a business back home"},"i14":{"category":"Campaigns","idea":"OFW associations and OWWA partnership","n":14,"segment":"Broiler Farm","status":"For discussion","timing":"Day 90+","what":"Talks for active OFWs on how to start a business while still abroad"},"i15":{"category":"Campaigns","idea":"OFW Community Learning Sessions","n":15,"segment":"","status":"For discussion","timing":"","what":"COMSOFIL international - provides courses and community learning programs across saudi arabia\n\"your future back home\" campaign"},"i16":{"category":"Digital Tools","idea":"Poultry Construction Cost Calculator landing page","n":16,"segment":"Both","status":"For discussion","timing":"Month 3","what":"Visitors estimate their build cost, then book a consult (lead capture)"},"i17":{"category":"Digital Tools","idea":"Retarget people who show buying intent","n":17,"segment":"Both","status":"Ongoing","timing":"Ongoing; paid retargeting from Day 90+","what":"Follow up with page visitors, video viewers and inquirers"},"i18":{"category":"Digital Tools","idea":"The Digital Farm Veterinarian","n":18,"segment":"Both","status":"For discussion","timing":"Day 90+","what":"Bi-weekly or Monthly FB Live session with Doc Jorge/PAC Engineers answering farm-development/operation questions"},"i19":{"category":"Digital Tools","idea":"DA and OWWA OFW support","n":19,"segment":"Both","status":"For discussion","timing":"Day 90+","what":"last oct 4 DA and OWWA announced strengthened support for returning OFWs interested in agribusiness. \nPAC can create educ content series around this topic - not hard sell"},"i20":{"category":"Direct B2B Outreach","idea":"Poultry prospect database","n":20,"segment":"Both","status":"Ongoing","timing":"Month 1","what":"Build a target list instead of waiting: listed poultry and agri businesses, event exhibitor booth visit lists, land brokers and suppliers, associations and coops, companies announcing expansions, people who requested guides or quotes. Track organization, location, likely project type, referral source, last contact and next step. Follow privacy and marketing rules"},"i21":{"category":"Direct B2B Outreach","idea":"Halal Meat Processing Companies in VisMin","n":21,"segment":"Both","status":"For discussion","timing":"Day 90+","what":"especially in mindanao, fish is more abundant. we can target the SMEs for them to set up their own farm to get their own chickens - raised halal"}},"reference":{"plan":{"source":"excel","text":"Prime Agritech Content Calendar, Nov 2026 to Jan 2027 (90-Day Campaign)\nTopics are left blank on purpose: pick an old video to repurpose, then write the hook and caption for that day's target segment.\n\nTARGET SEGMENTS\n• Breeder Upgrade: 70% of regular posts. CTA: Book a free farm upgrade consult. Conventional (open-sided) breeder farm owners losing eggs, chicks and money to heat. Channels: FB, YouTube, TikTok.\n• Broiler Farm: 30% of regular posts. CTA: Book a free initial farm consult. Tunnel-vent broiler farms we built, used as proof for growers planning their first farm. Channels: FB, YouTube.\n• All Audiences: holidays only. Holiday greeting (no sales CTA). Everyone following the page. Channels: FB, TikTok.\n\nWEEKLY POSTING PLAN\nTuesday: Reel · Thursday: Photo post · Saturday: Photo post · Sunday: Reel\n\nBROILER FARM ROTATION (4-week cycle)\nWeek 1: Sunday reel · Week 2: Tuesday reel · Week 3: Saturday photo · Week 4: Thursday photo + Sunday reel\nAll other regular slots = Breeder Upgrade. Holidays = All Audiences.\n\nPOSTING RULES\n1. Every post speaks to one segment only, so we can see what works for whom.\n2. English subtitles on every video and photo caption.\n3. Nothing goes live without marketing's go signal and Jacinto's final approval.\n4. On a PH holiday, the holiday post replaces that day's regular post. Holidays outside Sat/Sun/Tue/Thu are added as extra posts.\n5. Reply to comments within 24 hours. Log every inquiry in the lead tracker.\n\nDECEMBER HOLIDAY SHOOT (Prime team, all employees)\n• Photos: per department and whole team, kept as stock assets\n• Videos: Christmas greeting (post Dec 24) and New Year greeting (post Dec 31)\n• Group photo posts: Dec 25 and Jan 1\n• Shoot date: not set yet. Leave time for the 7-working-days first edit and approval before Dec 24.\n\nAGREEMENT ESSENTIALS (Marketing Services Agreement, Oct 22 2026)\nMonthly output: 8 Reels (2 a week), 8 photo posts (2 a week), 2 long-form YouTube videos. Holiday postings are free, on top of the weekly output. TikTok reposts of the same Reels included.\nApprovals: Jacinto approves everyday posts. Doc Jorge approves advertorials, client stories, and anything on projects, pricing or company positions. Nothing critical-technical, no client data or pricing published without Prime's approval.\nCommunity: Mon–Sat, three inbox check-ins a day (morning, midday, late afternoon), replies within 24 hours. Qualified leads to sales within 1 working day.\nQualified inquiry = a prospect with a farm project, a location and a realistic timeline, logged in the lead tracker.\nPrime provides: at least 2 half-day shoots a month with Doc Jorge, client permissions, at least 3 days' notice of farm visits, talks, events and site milestones, feedback on drafts within 2 working days.\nDay-90 targets (Nov 1 2026 – Jan 31 2027 vs baseline): 16 posts a month at 90% on schedule; Facebook followers +900 (about 6.2K); 100K Facebook views a month; 4,000 engagement a month; YouTube +150 subscribers; 10 qualified inquiries a month; 95% answered within 24 hrs; 70% of first edits approved with one revision or less by month 3.\nIncentive: monthly score from the performance matrix (85–100 = ₱15,000, 50–84 = ₱10,000, below 50 = ₱0), pooled and paid 6 months after signing, then every 3 months. Deal bonus ₱5,000 per closed deal from a lead by Anne or Jacinto.\nOpen item: YouTube subscriber count and current monthly inquiries still needed for the baseline (enter them under KPI reports › Baseline).","updatedAt":1793779000000}}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(() => {
+  // ---------- config (from the 90-day plan and the Nov 2026 contract) ----------
+  const CFG = {
+    trialStart: "2026-11-01",
+    reelsPerWeek: 2, photosPerWeek: 2, breederShare: 0.70,
+    // Marketing Services Agreement, Oct 22 2026
+    reelsPerMonth: 8, photosPerMonth: 8, ytPerMonth: 2, postsPerMonth: 16, onSchedule: 0.90,
+    baseline: { followers: 5300, viewsPerMonth: 39000, engagementPerMonth: 1700 },
+    followersGain90: 900, viewsPerMonth: 100000, engagementPerMonth: 4000, ytSubsGain90: 150,
+    qualifiedPerMonth: 10, answered24: 0.95, firstEditOk: 0.70, dealBonus: 5000,
+  };
+  const MATRIX = [
+    {k:"qualified", label:"Qualified project inquiries", w:25, a:5, e:10},
+    {k:"onSchedule", label:"Content published on schedule", w:15, a:0.80, e:0.90, pct:true},
+    {k:"views", label:"Facebook views", w:15, a:60000, e:100000},
+    {k:"followersGained", label:"Facebook followers gained", w:10, a:150, e:300},
+    {k:"engagement", label:"Facebook engagement", w:10, a:2500, e:4000},
+    {k:"answered24", label:"Inquiries answered within 24 hrs", w:10, a:0.90, e:0.95, pct:true},
+    {k:"firstEdit", label:"First edits approved, ≤1 revision", w:10, a:0.50, e:0.70, pct:true},
+    {k:"ytGained", label:"YouTube subscribers gained", w:5, a:10, e:50},
+  ];
+  const PEOPLE = [
+    {id:"Anne", role:"Marketing lead, uploads", c:"--c-anne"},
+    {id:"Jacinto", role:"Sales, final approval", c:"--c-jacinto"},
+    {id:"Christian", role:"A-roll, editing", c:"--c-christian"},
+    {id:"Yuan", role:"B-roll, drone", c:"--c-yuan"},
+  ];
+  const POST_TYPES = ["Reel post","Photo post","YouTube video"];
+  const TYPES = [...POST_TYPES,"Shoot","Edit","Write-up / SEO","Website / LinkedIn","On-ground activity","Inquiry follow-up","Meeting","Admin"];
+  const STATUSES = ["todo","doing","review","approved","scheduled","done"];
+  const label = (s, isPost) => ({todo:"Not started",doing:isPost?"Editing":"In progress",review:"For approval",approved:"Approved",scheduled:"Scheduled",done:isPost?"Posted":"Done"})[s] || s;
+  const CTA = {"Breeder Upgrade":"Book a free farm upgrade consult","Broiler Farm":"Book a free initial farm consult","All Audiences":"Holiday greeting (no sales CTA)"};
+  const HOLIDAYS = {"2026-11-01":"All Saints' Day","2026-11-02":"All Souls' Day","2026-11-30":"Bonifacio Day","2026-12-08":"Immaculate Conception","2026-12-24":"Christmas Eve","2026-12-25":"Christmas Day","2026-12-30":"Rizal Day","2026-12-31":"Last day of the year","2027-01-01":"New Year's Day"};
+  const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const BANK_ST = ["In bank","Planned","Shot","Used"];
+  const IDEA_ST = ["For discussion","Approved","Ongoing","Done","Dropped"];
+
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2,"0");
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+  const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+  const addMonths = (d,n) => new Date(d.getFullYear(), d.getMonth()+n, 1);
+  const monday = d => { const x = new Date(d.getFullYear(),d.getMonth(),d.getDate()); return addDays(x,-((x.getDay()+6)%7)); };
+  const todayISO = () => iso(new Date());
+  const ym = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+  const monthName = (d,o={month:"long",year:"numeric"}) => d.toLocaleDateString("en-US",o);
+  const fmtTime = t => { if(!t) return ""; const [h,m]=t.split(":").map(Number); return `${((h+11)%12)+1}:${pad(m)}${h<12?"am":"pm"}`; };
+  const short = d => parse(d).toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  const pColor = name => { const p = PEOPLE.find(p=>p.id===name); return p ? `var(${p.c})` : "var(--muted)"; };
+  const isPost = it => POST_TYPES.includes(it.type);
+  const fmtN = n => n==null||isNaN(n) ? "—" : Number(n).toLocaleString("en-US");
+  const pct = n => n==null||isNaN(n) ? "—" : Math.round(n*100)+"%";
+  const published = it => it.status==="done" || (it.status==="scheduled" && it.date<=todayISO());
+  const weekNo = ds => { const s = monday(parse(CFG.trialStart)); return Math.floor((parse(ds)-s)/(7*864e5))+1; };
+
+  let state = { view:"week", week: monday(new Date()), month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    who:"All", hideDone:false, items:[], bank:[], ideas:[], kpis:{}, loaded:false, period:null };
+  try { const s = JSON.parse(localStorage.getItem("planner-view")||"{}"); if(s.who) state.who=s.who; if(s.hideDone) state.hideDone=true; if(s.view) state.view=s.view; } catch(e){}
+  if (location.hash && ["week","calendar","reports","ideas"].includes(location.hash.slice(1))) state.view = location.hash.slice(1);
+  const saveView = () => { try{ localStorage.setItem("planner-view", JSON.stringify({who:state.who,hideDone:state.hideDone,view:state.view})); }catch(e){} };
+
+  let db = null, canWrite = true, me = null;
+  const TEAM = (window.PA_TEAM||[]).map(t=>({...t, email:String(t.email||"").toLowerCase()}));
+  const stamp = () => ({ updatedAt: Date.now(), ...(me?{updatedBy:me}:{}) });
+  const nameCache = {};
+  async function nameOf(id){ if(!id) return ""; const t = TEAM.find(t=>t.email===String(id).toLowerCase()); return t ? t.name : String(id); }
+  const when = t => new Date(t).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+
+  function el(tag, attrs={}, ...kids){
+    const e = document.createElement(tag);
+    for (const [k,v] of Object.entries(attrs||{})) {
+      if (v==null || v===false) continue;
+      if (k==="class") e.className=v; else if (k==="style") e.setAttribute("style",v);
+      else if (k.startsWith("on")) e.addEventListener(k.slice(2),v); else e.setAttribute(k,v===true?"":v);
+    }
+    for (const k of kids.flat()) if (k!=null && k!==false) e.append(k.nodeType ? k : document.createTextNode(k));
+    return e;
+  }
+  const visible = it => (state.who==="All" || it.owner===state.who);
+  const titleOf = it => it.title || (isPost(it) ? `${it.type.replace(" post","")} for ${it.segment||"—"}, topic not picked yet` : "Untitled");
+
+  // ---------- views ----------
+  function setView(v){
+    state.view=v; saveView();
+    try { history.replaceState(null,"","#"+v); } catch(e){}
+    for (const t of document.querySelectorAll(".tab")) t.setAttribute("aria-selected", String(t.dataset.view===v));
+    for (const s of ["week","calendar","reports","ideas"]) $("v-"+s).hidden = s!==v;
+    render();
+  }
+  document.querySelectorAll(".tab").forEach(t => t.onclick = () => setView(t.dataset.view));
+  window.addEventListener("hashchange", () => { const v=location.hash.slice(1); if(["week","calendar","reports","ideas"].includes(v) && v!==state.view) setView(v); });
+
+  function render(){
+    if (state.view==="week") renderWeek();
+    else if (state.view==="calendar") renderCalendar();
+    else if (state.view==="reports") renderReports();
+    else renderIdeas();
+  }
+
+  function cardFor(it, showDate){
+    const c = el("button",{class:"card"+(published(it)?" done":""), style:`--pc:${pColor(it.owner)}`, type:"button", onclick:()=>openForm(it)},
+      el("span",{class:"t"+(it.title?"":" tbd")}, titleOf(it)),
+      el("span",{class:"meta"},
+        showDate ? el("span",{class:"time"}, short(it.date)) : null,
+        it.time ? el("span",{class:"time"}, fmtTime(it.time)) : null,
+        el("span",{class:"type"}, it.type), el("span",{}, it.owner)),
+      el("span",{class:"meta"}, el("span",{class:"st st-"+it.status}, label(it.status,isPost(it))), it.segment ? el("span",{class:"seg"}, it.segment) : null, it.needsDocJorge && !published(it) ? el("span",{class:"seg",style:"color:var(--red)"},"Doc Jorge") : null));
+    return c;
+  }
+
+  function renderWeek(){
+    const wk = state.week, end = addDays(wk,6);
+    $("range").textContent = `${wk.toLocaleDateString("en-US",{month:"short",day:"numeric"})} – ${end.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`;
+    const ppl = $("people"); ppl.replaceChildren();
+    [{id:"All"}, ...PEOPLE].forEach(p => ppl.append(el("button",{class:"chip",type:"button",title:p.role,"aria-pressed":String(state.who===p.id), style:p.c?`--pc:var(${p.c})`:null, onclick:()=>{state.who=p.id;saveView();render();}},
+      p.c ? el("span",{class:"dot"}) : null, p.id==="All"?"Whole team":p.id)));
+    $("hideDone").checked = state.hideDone;
+    const s = iso(wk), e = iso(end), today = todayISO();
+    const inWeek = state.items.filter(it => it.date>=s && it.date<=e);
+    const mine = inWeek.filter(visible);
+    const reels = inWeek.filter(i=>i.type==="Reel post"), photos = inWeek.filter(i=>i.type==="Photo post");
+    const meter = (n,goal) => { const i=el("i",{style:`width:${Math.min(100,Math.round(n/goal*100))}%`}); if(n>=goal) i.className="full"; return el("div",{class:"meter"},i); };
+    $("stats").replaceChildren(
+      el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Reels this week"), el("b",{}, `${reels.filter(published).length} / ${CFG.reelsPerWeek}`), meter(reels.filter(published).length,CFG.reelsPerWeek), el("small",{}, `${reels.length} planned · target ${CFG.reelsPerWeek} a week`)),
+      el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Photo posts this week"), el("b",{}, `${photos.filter(published).length} / ${CFG.photosPerWeek}`), meter(photos.filter(published).length,CFG.photosPerWeek), el("small",{}, `${photos.length} planned · target ${CFG.photosPerWeek} a week`)),
+      el("div",{class:"stat"}, el("span",{class:"eyebrow"}, state.who==="All"?"Team activities":`${state.who}'s activities`), el("b",{}, String(mine.length)), el("small",{}, `${mine.filter(published).length} done · ${mine.filter(i=>!published(i)).length} open`)),
+      el("div",{class:"stat"}, el("span",{class:"eyebrow"},"On-ground this week"), el("b",{}, String(inWeek.filter(i=>i.type==="On-ground activity").length)), el("small",{},"Every on-ground activity = a marketing asset")));
+    const board = $("board"); board.replaceChildren();
+    for (let i=0;i<7;i++){
+      const d = addDays(wk,i), ds = iso(d);
+      const items = mine.filter(it=>it.date===ds && !(state.hideDone && published(it)))
+        .sort((a,b)=>(a.time||"99").localeCompare(b.time||"99") || (a.createdAt||0)-(b.createdAt||0));
+      board.append(el("div",{class:"day"+(ds===today?" today":"")},
+        el("div",{class:"dayhead"}, el("span",{class:"dn"}, DOW[i]+(ds===today?" · Today":"")), el("span",{class:"dd"}, d.toLocaleDateString("en-US",{month:"short",day:"numeric"}))),
+        HOLIDAYS[ds] ? el("div",{class:"holiday"}, "PH holiday: "+HOLIDAYS[ds]) : null,
+        items.map(it=>cardFor(it,false)),
+        !state.loaded ? el("div",{class:"empty"},"Loading…") : null,
+        canWrite ? el("button",{class:"add-day",type:"button",onclick:()=>openForm(null,{date:ds})},"+ Add") : null));
+    }
+    const rev = state.items.filter(i=>i.status==="review" && visible(i)).sort((a,b)=>a.date.localeCompare(b.date));
+    const od = state.items.filter(i=>i.date<today && !published(i) && i.status!=="scheduled" && visible(i)).sort((a,b)=>a.date.localeCompare(b.date));
+    $("revCount").textContent = rev.length; $("odCount").textContent = od.length;
+    $("reviewList").replaceChildren(...(rev.length? rev.slice(0,12).map(i=>cardFor(i,true)) : [el("div",{class:"empty"},"Nothing waiting for approval.")]));
+    $("overdueList").replaceChildren(...(od.length? od.slice(0,12).map(i=>cardFor(i,true)) : [el("div",{class:"empty"},"Nothing overdue.")]));
+    $("addBtn").hidden = !canWrite;
+  }
+
+  function renderCalendar(){
+    const m = state.month, key = ym(m);
+    $("cRange").textContent = monthName(m);
+    const posts = state.items.filter(i=>isPost(i) && i.date.startsWith(key)).sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0));
+    const reg = posts.filter(p=>p.segment!=="All Audiences"), br = reg.filter(p=>p.segment==="Breeder Upgrade");
+    $("calSum").replaceChildren(
+      el("span",{},"Posts ", el("b",{},posts.length)), el("span",{},"Reels ", el("b",{},posts.filter(p=>p.type==="Reel post").length)),
+      el("span",{},"Photos ", el("b",{},posts.filter(p=>p.type==="Photo post").length)), el("span",{},"Breeder Upgrade ", el("b",{},br.length)),
+      el("span",{},"Broiler Farm ", el("b",{},reg.length-br.length)), el("span",{},"Holiday ", el("b",{},posts.length-reg.length)),
+      el("span",{},"Breeder share of regular posts ", el("b",{}, reg.length?pct(br.length/reg.length):"—")),
+      el("span",{},"Posted ", el("b",{}, posts.filter(published).length)));
+    const body = $("calBody"); body.replaceChildren();
+    if (!posts.length) body.append(el("tr",{}, el("td",{colspan:"10",class:"empty"}, state.loaded ? `No posts planned for ${monthName(m)} yet. Use + Add post.` : "Loading…")));
+    for (const p of posts){
+      const d = parse(p.date);
+      body.append(el("tr",{class:"click"+(p.segment==="All Audiences"?" hol":""), tabindex:"0", onclick:()=>openForm(p), onkeydown:e=>{if(e.key==="Enter")openForm(p);}},
+        el("td",{class:"time"}, "W"+weekNo(p.date)),
+        el("td",{style:"white-space:nowrap"}, el("span",{class:"time"}, short(p.date)), " ", el("span",{class:"hint"}, DOW[(d.getDay()+6)%7])),
+        el("td",{}, p.type.replace(" post","")),
+        el("td",{}, el("span",{class:"seg"}, p.segment||"—")),
+        el("td",{class:"wide"}, p.title || el("span",{class:"hint"},"Topic not picked yet")),
+        el("td",{class:"hint"}, p.cta||""),
+        el("td",{}, el("span",{class:"st st-"+p.status}, label(p.status,true))),
+        el("td",{class:"linkcell"}, p.link ? el("a",{href:p.link,target:"_blank",rel:"noopener",onclick:e=>e.stopPropagation()},"Open") : ""),
+        el("td",{class:"num"}, p.views!=null&&p.views!==""?fmtN(p.views):""),
+        el("td",{class:"num"}, p.engagement!=null&&p.engagement!==""?fmtN(p.engagement):"")));
+    }
+    $("addPost").hidden = !canWrite;
+  }
+
+  // ---------- KPI computation ----------
+  const SNAP_FIELDS = [
+    ["followers","Facebook followers, month end"],["ytSubs","YouTube subscribers, month end"],
+    ["views","Facebook views this month"],["engagement","Facebook engagement this month"],
+    ["inquiries","Inquiries received (inbox + Gmail)"],["answered24","Answered within 24 hrs"],
+    ["qualified","Qualified project inquiries"],["toSales","Passed to sales within 1 working day"],
+    ["closedDeals","Closed deals from BRICATO leads"]];
+  const BASE_KEY = ym(addMonths(parse(CFG.trialStart),-1));
+  function periods(){
+    const out = [{kind:"baseline", start:addMonths(parse(CFG.trialStart),-1), months:1}], start = parse(CFG.trialStart), now = new Date();
+    for (let d = new Date(start); d <= now; d = addMonths(d,1)) out.push({kind:"month", start:new Date(d), months:1});
+    for (let q=0; addMonths(start,3*q) <= now; q++) out.push({kind:"quarter", q, start:addMonths(start,3*q), months:3});
+    return out;
+  }
+  const pid = p => p.kind==="month" ? "m-"+ym(p.start) : p.kind==="quarter" ? "q-"+p.q : "base";
+  const plabel = p => p.kind==="baseline" ? `Baseline before BRICATO (${monthName(p.start,{month:"short",year:"numeric"})})` : p.kind==="month" ? monthName(p.start) :
+    `${p.q===0?"Day 90 (trial)":"Quarter "+(p.q+1)}: ${monthName(p.start,{month:"short",year:"numeric"})} – ${monthName(addMonths(p.start,2),{month:"short",year:"numeric"})}`;
+  const snapVal = (k,f) => { const v = state.kpis[k]?.[f]; if (v!=null && v!=="") return Number(v); if (k===BASE_KEY && f==="followers") return CFG.baseline.followers; return null; };
+  const peso = n => "₱"+Number(n).toLocaleString("en-US");
+
+  // weighted score from the agreement's performance matrix
+  function scoreMonth(m){
+    let total = 0, missing = [];
+    const rows = MATRIX.map(x => {
+      const v = m[x.k]; let pts = 0, g = "na";
+      if (v==null || isNaN(v)) missing.push(x.label);
+      else if (v >= x.e) { pts = x.w; g = "ok"; } else if (v >= x.a) { pts = x.w/2; g = "warn"; } else g = "bad";
+      total += pts; return {...x, v, pts, g};
+    });
+    const incentive = total>=85 ? 15000 : total>=50 ? 10000 : 0;
+    return { rows, total, incentive, missing };
+  }
+
+  function compute(p){
+    const s = iso(p.start), endD = addDays(addMonths(p.start,p.months),-1), e = iso(endD), today = todayISO();
+    const upto = e < today ? e : today;
+    const inP = state.items.filter(i=>i.date>=s && i.date<=e);
+    const posts = inP.filter(isPost), due = posts.filter(x=>x.date<=upto), pub = posts.filter(published);
+    const regPub = pub.filter(x=>x.segment!=="All Audiences");
+    const cnt = t => pub.filter(x=>x.type===t && x.segment!=="All Audiences").length;
+    const reg = regPub.filter(x=>x.segment), br = reg.filter(x=>x.segment==="Breeder Upgrade").length;
+    const withViews = pub.filter(x=>x.views!=null && x.views!=="" && !isNaN(x.views));
+    const avgViews = withViews.length ? withViews.reduce((a,x)=>a+Number(x.views),0)/withViews.length : null;
+    const top = withViews.slice().sort((a,b)=>b.views-a.views)[0];
+    const edits = inP.filter(x=>(isPost(x)||x.type==="Edit") && ["approved","scheduled","done"].includes(x.status) && (x.statusLog?.review || x.revisions!=null));
+    const firstEdit = edits.length ? edits.filter(x=>(Number(x.revisions)||0)<=1).length/edits.length : null;
+    const months = []; for (let i=0;i<p.months;i++) months.push(ym(addMonths(p.start,i)));
+    const prevKey = ym(addMonths(p.start,-1)), lastKey = months[months.length-1];
+    const sum = f => months.some(k=>snapVal(k,f)!=null) ? months.reduce((a,k)=>a+(snapVal(k,f)||0),0) : null;
+    const fEnd = snapVal(lastKey,"followers"), fStart = snapVal(prevKey,"followers");
+    const yEnd = snapVal(lastKey,"ytSubs"), yStart = snapVal(prevKey,"ytSubs");
+    const inquiries = sum("inquiries"), answered = sum("answered24");
+    const people = PEOPLE.map(pp => { const mine = inP.filter(x=>x.owner===pp.id && x.date<=upto); const done = mine.filter(published).length; return {id:pp.id, due:mine.length, done, open:mine.length-done}; });
+    const r = { p, s, e, upto, months, planned:posts.length, due:due.length, pub:pub.length, regPub:regPub.length,
+      reels:cnt("Reel post"), photos:cnt("Photo post"), yt:cnt("YouTube video"), holiday:pub.length-regPub.length,
+      breederShare: reg.length? br/reg.length : null, regular:reg.length,
+      onSchedule: due.length ? due.filter(published).length/due.length : null,
+      viewsEntered: withViews.length, avgViews, top, firstEdit, editsCounted: edits.length,
+      followers:fEnd, followersGained: fEnd!=null&&fStart!=null ? fEnd-fStart : null,
+      ytSubs:yEnd, ytGained: yEnd!=null&&yStart!=null ? yEnd-yStart : null,
+      views: sum("views"), engagement: sum("engagement"), inquiries, answered,
+      answered24: inquiries ? (answered||0)/inquiries : null, qualified: sum("qualified"), toSales: sum("toSales"), closedDeals: sum("closedDeals"),
+      snapsMissing: months.filter(k=>!state.kpis[k] && k<ym(new Date())), people,
+      onGround: inP.filter(x=>x.type==="On-ground activity").length, docJorge: inP.filter(x=>x.needsDocJorge && !published(x)).length,
+      notes: months.map(k=>state.kpis[k]?.notes).filter(Boolean) };
+    if (p.kind==="month") r.score = scoreMonth(r);
+    else r.monthly = months.map(k => { const mp = {kind:"month", start:parse(k+"-01"), months:1}; const mr = compute(mp); return {k, label:monthName(mp.start,{month:"short",year:"numeric"}), score:mr.score, inFuture: k>ym(new Date())}; });
+    return r;
+  }
+
+  const grade = (v, goal, warnAt=0.8) => { if (v==null || goal==null || isNaN(v)) return "na"; if (v>=goal) return "ok"; if (v>=goal*warnAt) return "warn"; return "bad"; };
+  const PILL = {ok:"On target",warn:"Close",bad:"Behind",na:"No data"};
+  const MPILL = {ok:"Excellent",warn:"Acceptable",bad:"Below",na:"No data"};
+  const fmtM = (x,v) => v==null||isNaN(v) ? "—" : x.pct ? pct(v) : fmtN(Math.round(v));
+
+  function kpiRows(r){
+    const M = r.p.months, day90 = r.p.kind==="quarter";
+    const secs = [];
+    if (r.score) {
+      secs.push({sec:"Performance matrix", mpill:true, rows:[
+        ...r.score.rows.map(x=>({l:x.label, v:fmtM(x,x.v), g:x.g, sub:`weight ${x.w} · acceptable ${fmtM(x,x.a)} · excellent ${fmtM(x,x.e)} · ${x.pts} pts`})),
+        {l:"Monthly score", v:`${r.score.total} / 100`, g:r.score.total>=85?"ok":r.score.total>=50?"warn":"bad", strong:true,
+          sub:`Incentive earned: ${peso(r.score.incentive)} (85+ = ₱15,000 · 50–84 = ₱10,000 · below 50 = ₱0). Doc Jorge confirms at the monthly sync.${r.score.missing.length?` Missing data counts as 0: ${r.score.missing.join(", ")}.`:""}`},
+      ]});
+    } else {
+      const earned = r.monthly.filter(m=>!m.inFuture).reduce((a,m)=>a+m.score.incentive,0);
+      secs.push({sec:"Performance matrix by month", mpill:true, rows:[
+        ...r.monthly.map(m=>({l:m.label, v:m.inFuture?"—":`${m.score.total} / 100`, g:m.inFuture?"na":m.score.total>=85?"ok":m.score.total>=50?"warn":"bad", sub:m.inFuture?"Not started yet":`${peso(m.score.incentive)} incentive${m.score.missing.length?` · missing: ${m.score.missing.join(", ")}`:""}`})),
+        {l:"Incentive pool for the period", v:peso(earned), g:"na", strong:true, sub:"Pooled; first payout 6 months after signing, then every 3 months"},
+      ]});
+    }
+    secs.push({sec:"Output vs agreement", rows:[
+      {l:"Posts published (excl. holidays)", v:`${r.regPub} / ${CFG.postsPerMonth*M}`, g:grade(r.regPub, CFG.postsPerMonth*M, 0.85), sub:`target ${CFG.postsPerMonth} a month · ${r.planned} posts on the calendar, ${r.due} due so far`},
+      {l:"Reels", v:`${r.reels} / ${CFG.reelsPerMonth*M}`, g:grade(r.reels, CFG.reelsPerMonth*M, 0.85), sub:`${CFG.reelsPerMonth} a month (2 a week)`},
+      {l:"Photo posts", v:`${r.photos} / ${CFG.photosPerMonth*M}`, g:grade(r.photos, CFG.photosPerMonth*M, 0.85), sub:`${CFG.photosPerMonth} a month (2 a week)`},
+      {l:"Long-form YouTube videos", v:`${r.yt} / ${CFG.ytPerMonth*M}`, g:grade(r.yt, CFG.ytPerMonth*M, 0.5), sub:`${CFG.ytPerMonth} a month`},
+      {l:"Holiday posts", v:String(r.holiday), g:"na", sub:"Free, on top of the weekly output"},
+      {l:"Published on schedule", v:pct(r.onSchedule), g:grade(r.onSchedule, CFG.onSchedule, 0.89), sub:"of posts due so far · Day 90 target 90%"},
+      {l:"Breeder Upgrade share", v:pct(r.breederShare), g:r.breederShare==null?"na":(Math.abs(r.breederShare-CFG.breederShare)<=0.08?"ok":Math.abs(r.breederShare-CFG.breederShare)<=0.15?"warn":"bad"), sub:`of ${r.regular} regular posts · plan 70/30`},
+    ]});
+    secs.push({sec:"Audience", rows:[
+      {l:"Facebook followers", v:fmtN(r.followers), g:day90? grade(r.followersGained, CFG.followersGain90, 0.85) : grade(r.followersGained, 300, 0.5),
+        sub: r.followers==null ? "Enter month-end followers" : `${r.followersGained!=null?(r.followersGained>=0?"+":"")+fmtN(r.followersGained)+" this period · ":""}${day90?`Day 90 target +${CFG.followersGain90} (about 6.2K)`:"matrix: 150 acceptable, 300 excellent"}`},
+      {l:"Facebook views", v:fmtN(r.views), g:grade(r.views, CFG.viewsPerMonth*M, 0.6), sub:`target ${fmtN(CFG.viewsPerMonth*M)} · baseline ${fmtN(CFG.baseline.viewsPerMonth*M)}`},
+      {l:"Facebook engagement", v:fmtN(r.engagement), g:grade(r.engagement, CFG.engagementPerMonth*M, 0.625), sub:`target ${fmtN(CFG.engagementPerMonth*M)} · baseline ${fmtN(CFG.baseline.engagementPerMonth*M)}`},
+      {l:"YouTube subscribers", v:fmtN(r.ytSubs), g:day90? grade(r.ytGained, CFG.ytSubsGain90, 0.5) : grade(r.ytGained, 50, 0.2),
+        sub: r.ytGained!=null ? `${r.ytGained>=0?"+":""}${fmtN(r.ytGained)} this period · ${day90?`Day 90 target +${CFG.ytSubsGain90}`:"matrix: 10 acceptable, 50 excellent"}` : "Needs this and the previous month's subscriber count (baseline still to fill)"},
+      {l:"Average views per post", v:r.avgViews==null?"—":fmtN(Math.round(r.avgViews)), g:"na", sub:`${r.viewsEntered} of ${r.pub} published posts have views entered`},
+      {l:"Best post", v:r.top?fmtN(r.top.views):"—", g:"na", sub:r.top?`${r.top.title||r.top.type} (${short(r.top.date)})`:"Add views to posts to see the best one"},
+    ]});
+    secs.push({sec:"Inquiries & deal bonus", rows:[
+      {l:"Qualified project inquiries", v:fmtN(r.qualified), g:grade(r.qualified, CFG.qualifiedPerMonth*M, 0.5), sub:`target ${CFG.qualifiedPerMonth} a month · has a farm project, a location and a realistic timeline`},
+      {l:"Answered within 24 hrs", v:pct(r.answered24), g:grade(r.answered24, CFG.answered24, 0.947), sub:r.inquiries!=null?`${fmtN(r.answered)} of ${fmtN(r.inquiries)} inquiries · target 95%`:"Enter inquiries received and answered"},
+      {l:"Passed to sales within 1 working day", v:r.qualified?`${fmtN(r.toSales)} of ${fmtN(r.qualified)}`:"—", g:r.qualified?grade((r.toSales||0)/r.qualified,1,0.9):"na", sub:"qualified leads go to sales within 1 working day"},
+      {l:"Closed deals (deal bonus)", v:fmtN(r.closedDeals), g:"na", sub:r.closedDeals?`${peso(r.closedDeals*CFG.dealBonus)} in deal bonuses, paid with the next retainer`:`${peso(CFG.dealBonus)} per signed contract from a lead by Anne or Jacinto`},
+    ]});
+    secs.push({sec:"Production & team", rows:[
+      {l:"First edits approved with ≤1 revision", v:pct(r.firstEdit), g:grade(r.firstEdit, CFG.firstEditOk, 0.714), sub:`${r.editsCounted} edits went through approval · target 70% by month 3 (counted from status changes)`},
+      {l:"Waiting on Doc Jorge's approval", v:String(r.docJorge), g:"na", sub:"advertorials, client stories, projects, pricing, company positions"},
+      {l:"On-ground activities", v:String(r.onGround), g:"na", sub:"talks, farm visits, expos logged"},
+      ...r.people.map(pp=>({l:pp.id, v:`${pp.done} / ${pp.due}`, g:pp.due?grade(pp.done/pp.due,1,0.8):"na", sub:`${pp.open} still open of items due so far`})),
+    ]});
+    return secs;
+  }
+
+  function reportText(r){
+    const L = [`PRIME AGRITECH MARKETING REPORT (BRICATO)`, `${plabel(r.p)}  (${short(r.s)} – ${short(r.e)}, counted through ${short(r.upto)})`];
+    if (r.score) L.push(`Monthly score: ${r.score.total}/100 · incentive earned ${peso(r.score.incentive)}`);
+    for (const sec of kpiRows(r)) {
+      L.push("", sec.sec.toUpperCase());
+      for (const row of sec.rows) L.push(`- ${row.l}: ${row.v}${row.g!=="na"?` [${(sec.mpill?MPILL:PILL)[row.g]}]`:""} (${row.sub})`);
+    }
+    if (r.notes.length) { L.push("", "NOTES"); r.notes.forEach(n=>L.push(n)); }
+    if (r.snapsMissing.length) L.push("", `Missing page numbers for: ${r.snapsMissing.join(", ")}`);
+    return L.join("\n");
+  }
+
+  function renderReports(){
+    const ps = periods(); const sel = $("period");
+    if (!state.period || !ps.some(p=>pid(p)===state.period)) {
+      // default: last finished month if today is in the first 5 days, else current month
+      const now = new Date(); const def = now.getDate()<=5 ? addMonths(now,-1) : now;
+      const m = ps.find(p=>p.kind==="month" && ym(p.start)===ym(def)) || ps.find(p=>p.kind==="month");
+      state.period = pid(m);
+    }
+    sel.replaceChildren(el("option",{value:"base"}, plabel(ps[0])), el("optgroup",{label:"Monthly"}, ps.filter(p=>p.kind==="month").map(p=>el("option",{value:pid(p)},plabel(p)))),
+                        el("optgroup",{label:"Every 3 months"}, ps.filter(p=>p.kind==="quarter").map(p=>el("option",{value:pid(p)},plabel(p)))));
+    sel.value = state.period;
+    const p = ps.find(x=>pid(x)===state.period); const r = compute(p);
+    // snapshot form only for month periods
+    $("snapPanel").hidden = p.kind==="quarter";
+    if (p.kind!=="quarter") {
+      const k = ym(p.start), s = state.kpis[k] || {};
+      $("snapMonth").textContent = monthName(p.start);
+      if ($("snapForm").dataset.key !== k || !$("snapForm").dataset.dirty) {
+        $("snapForm").dataset.key = k;
+        const flds = p.kind==="baseline" ? SNAP_FIELDS.filter(f=>["followers","ytSubs","views","engagement","inquiries","qualified"].includes(f[0])) : SNAP_FIELDS;
+        $("snapFields").replaceChildren(...flds.map(([f,l])=>el("label",{}, l, el("input",{type:"number",min:"0",id:"s-"+f,inputmode:"numeric"}))));
+        for (const [f] of flds) $("s-"+f).value = s[f] ?? (p.kind==="baseline" && f==="followers" ? CFG.baseline.followers : "");
+        $("s-notes").value = s.notes ?? "";
+        $("snapSaved").textContent = s.updatedAt ? `Last saved ${new Date(s.updatedAt).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}` : "Not entered yet";
+      }
+      [...$("snapForm").elements].forEach(x=>x.disabled=!canWrite);
+    }
+    if (p.kind==="baseline") {
+      $("kpiGrid").replaceChildren(el("div",{class:"panel"}, el("h3",{},"Baseline"), el("p",{class:"hint"},"Prime's page before BRICATO: 5.3K followers, posting once a month, about 39K views and 1.7K engagement a month. The agreement still needs the YouTube subscriber count and current monthly inquiries; enter them above so November's gains can be counted.")));
+      $("reportText").textContent = "Baseline month: no report."; return;
+    }
+    $("kpiGrid").replaceChildren(...kpiRows(r).map(sec => el("div",{class:"panel"}, el("h3",{}, sec.sec),
+      sec.rows.map(row => el("div",{class:"krow"}, el("span",{class:"lbl",style:row.strong?"font-family:var(--f-display);font-weight:800":null}, row.l), el("span",{class:"val"}, row.v, el("span",{class:"pill p-"+row.g}, (sec.mpill?MPILL:PILL)[row.g])), el("span",{class:"sub"}, row.sub))))));
+    $("reportText").textContent = reportText(r);
+  }
+  $("period").onchange = e => { state.period = e.target.value; delete $("snapForm").dataset.dirty; renderReports(); };
+  $("snapForm").addEventListener("input", () => $("snapForm").dataset.dirty = "1");
+  $("snapForm").addEventListener("submit", async ev => {
+    ev.preventDefault(); if (!db) return;
+    const k = $("snapForm").dataset.key, num = id => { const v=$(id).value; return v===""?null:Math.max(0,Number(v)); };
+    const body = { month:k, notes:$("s-notes").value.trim(), ...Object.fromEntries(SNAP_FIELDS.filter(([f])=>$("s-"+f)).map(([f])=>[f, num("s-"+f)])) };
+    $("snapSave").disabled = true;
+    try { await db.collection("kpis").doc(k).set({...body, ...stamp()}); delete $("snapForm").dataset.dirty; toast("Numbers saved"); } catch(e){ failed(e); }
+    finally { $("snapSave").disabled = false; }
+  });
+  $("copyReport").onclick = async () => {
+    const t = $("reportText").textContent;
+    try { await navigator.clipboard.writeText(t); toast("Report copied"); }
+    catch(e){ const r = document.createRange(); r.selectNodeContents($("reportText")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast("Text selected. Press Ctrl+C or Cmd+C to copy"); }
+  };
+
+  function renderIdeas(){
+    const bb = $("bankBody"); bb.replaceChildren();
+    const bank = state.bank.slice().sort((a,b)=>(a.n||999)-(b.n||999));
+    if (!bank.length) bb.append(el("tr",{}, el("td",{colspan:"8",class:"empty"}, state.loaded?"The bank is empty. Add your first idea below.":"Loading…")));
+    for (const b of bank) {
+      const st = el("select",{"aria-label":"Status", disabled:!canWrite}, BANK_ST.map(s=>el("option",{value:s, selected:b.status===s},s)));
+      st.onchange = () => upd("bank", b.id, {status:st.value});
+      bb.append(el("tr",{}, el("td",{class:"num"}, b.n||""), el("td",{class:"wide"}, b.idea), el("td",{}, el("span",{class:"seg"}, b.segment||"—")),
+        el("td",{}, b.pillar||""), el("td",{style:"white-space:nowrap"}, b.month||""), el("td",{class:"hint"}, b.notes||""), el("td",{}, st),
+        el("td",{}, canWrite ? el("button",{class:"small",type:"button",onclick:()=>openForm(null,{type:"Shoot",title:"Shoot: "+b.idea,segment:b.segment,notes:b.notes?("Content bank #"+b.n+": "+b.notes):("Content bank #"+b.n), fromBank:b.id})},"Plan shoot") : "")));
+    }
+    const ib = $("ideaBody"); ib.replaceChildren();
+    const ideas = state.ideas.slice().sort((a,b)=>(a.n||999)-(b.n||999));
+    if (!ideas.length) ib.append(el("tr",{}, el("td",{colspan:"7",class:"empty"}, state.loaded?"No marketing ideas yet.":"Loading…")));
+    for (const i of ideas) {
+      const st = el("select",{"aria-label":"Status", disabled:!canWrite}, [...new Set([...IDEA_ST, i.status])].map(s=>el("option",{value:s, selected:i.status===s},s)));
+      st.onchange = () => upd("ideas", i.id, {status:st.value});
+      ib.append(el("tr",{}, el("td",{class:"num"}, i.n||""), el("td",{style:"white-space:nowrap"}, i.category||""), el("td",{style:"min-width:160px;font-weight:600"}, i.idea),
+        el("td",{class:"wide hint"}, i.what||""), el("td",{}, el("span",{class:"seg"}, i.segment||"—")), el("td",{style:"white-space:nowrap"}, i.timing||""), el("td",{}, st)));
+    }
+    $("bankAdd").hidden = !canWrite;
+  }
+  $("bankAdd").addEventListener("submit", async ev => {
+    ev.preventDefault(); if(!db) return;
+    const idea = $("b-idea").value.trim(); if(!idea){ $("b-idea").focus(); return; }
+    const n = Math.max(0,...state.bank.map(b=>b.n||0))+1;
+    try { await db.collection("bank").doc("b"+pad(n)+"-"+Date.now().toString(36)).set({n, idea, segment:$("b-seg").value, pillar:$("b-pillar").value, month:"", notes:"", status:"In bank", createdAt:Date.now(), ...(me?{createdBy:me}:{}), ...stamp()}); $("b-idea").value=""; toast("Added to the bank"); } catch(e){ failed(e); }
+  });
+  async function upd(col, id, data){ try { await db.collection(col).doc(id).update({...data, ...stamp()}); toast("Saved"); } catch(e){ failed(e); } }
+
+  // ---------- form ----------
+  const dlg = $("dlg"); let editing = null, prefill = null;
+  $("f-type").append(...TYPES.map(t=>el("option",{value:t},t)));
+  $("f-owner").append(...PEOPLE.map(p=>el("option",{value:p.id},`${p.id} · ${p.role}`)));
+  function fillStatuses(post, cur){ $("f-status").replaceChildren(...STATUSES.map(s=>el("option",{value:s},label(s,post)))); $("f-status").value = cur||"todo"; }
+  function togglePost(){ const t=$("f-type").value, post = POST_TYPES.includes(t); document.querySelectorAll(".post-only").forEach(x=>x.hidden=!post); document.querySelectorAll(".nonpost").forEach(x=>x.hidden=post); if (t==="Edit") { $("f-rev").closest("label").hidden=false; } fillStatuses(post, $("f-status").value); }
+  $("f-type").onchange = togglePost;
+  $("f-seg").onchange = () => { if (POST_TYPES.includes($("f-type").value) && (!$("f-cta").value || Object.values(CTA).includes($("f-cta").value))) $("f-cta").value = CTA[$("f-seg").value]||""; };
+
+  function openForm(it, pre){
+    editing = it || null; prefill = pre || null; const v = it || pre || {};
+    $("dlgTitle").textContent = it ? (isPost(it)?"Edit post":"Edit activity") : (POST_TYPES.includes(v.type)?"Add post":"Add activity");
+    const inWeek = iso(state.week)<=todayISO() && todayISO()<=iso(addDays(state.week,6));
+    $("f-title").value = v.title || "";
+    $("f-type").value = v.type || "Shoot";
+    $("f-owner").value = v.owner || (state.who!=="All"?state.who:(POST_TYPES.includes(v.type)?"Anne":"Christian"));
+    $("f-date").value = v.date || (inWeek ? todayISO() : iso(state.week));
+    $("f-time").value = v.time || "";
+    $("f-seg").value = v.segment || "";
+    $("f-cta").value = v.cta ?? (CTA[v.segment]||"");
+    $("f-caption").value = v.caption || ""; $("f-link").value = v.link || "";
+    $("f-views").value = v.views ?? ""; $("f-eng").value = v.engagement ?? "";
+    $("f-where").value = v.where || ""; $("f-notes").value = v.notes || "";
+    $("f-rev").value = v.revisions ?? ""; $("f-dj").checked = !!v.needsDocJorge;
+    $("f-repeat").value = "1"; $("repeatWrap").hidden = !!it;
+    fillStatuses(POST_TYPES.includes($("f-type").value), v.status||"todo"); togglePost(); $("f-status").value = v.status||"todo";
+    $("editedBy").textContent = "";
+    if (it && it.updatedBy) nameOf(it.updatedBy).then(n => { if (editing===it) $("editedBy").textContent = `Last edited by ${n}${it.updatedAt?", "+when(it.updatedAt):""}`; });
+    else if (it && it.source==="excel" && !it.updatedAt) $("editedBy").textContent = "Imported from the Excel tracker on Nov 4, 2026";
+    $("delBtn").hidden = !it || !canWrite; $("delConfirm").hidden = true; $("saveBtn").hidden = !canWrite;
+    [...$("form").elements].forEach(x=>{ if(x.tagName!=="BUTTON") x.disabled = !canWrite; });
+    dlg.showModal(); setTimeout(()=>$("f-title").focus(),30);
+  }
+  $("cancelBtn").onclick = () => dlg.close();
+  $("delBtn").onclick = () => { $("delConfirm").hidden=false; $("delBtn").hidden=true; };
+  $("delNo").onclick = () => { $("delConfirm").hidden=true; $("delBtn").hidden=false; };
+  $("delYes").onclick = async () => { if(!editing) return; try { await db.collection("activities").doc(editing.id).delete(); toast("Deleted"); dlg.close(); } catch(e){ failed(e); } };
+  $("form").addEventListener("submit", async ev => {
+    ev.preventDefault(); if (!db) return;
+    const type = $("f-type").value, post = POST_TYPES.includes(type);
+    const title = $("f-title").value.trim(), date = $("f-date").value;
+    if (!title && !post) { $("f-title").focus(); toast("Describe the activity in a few words"); return; }
+    if (!date) { $("f-date").focus(); toast("Pick a date"); return; }
+    const num = id => { const v=$(id).value; return v===""?null:Math.max(0,Number(v)); };
+    const status = $("f-status").value;
+    const body = { title, type, owner:$("f-owner").value, date, time:$("f-time").value, status, segment:$("f-seg").value, notes:$("f-notes").value.trim(),
+      revisions: num("f-rev"), needsDocJorge: $("f-dj").checked,
+      ...(post ? { cta:$("f-cta").value.trim(), caption:$("f-caption").value.trim(), link:$("f-link").value.trim(), views:num("f-views"), engagement:num("f-eng") } : { where:$("f-where").value.trim() }) };
+    $("saveBtn").disabled = true;
+    try {
+      const col = db.collection("activities");
+      if (editing) {
+        const ch = editing.status!==status ? { statusLog: {...(editing.statusLog||{}), [status]: Date.now()} } : {};
+        if (editing.status==="review" && status==="doing" && String(body.revisions??"")===String(editing.revisions??"")) body.revisions = (Number(editing.revisions)||0)+1;
+        await col.doc(editing.id).update({...body, ...ch, ...stamp()}); toast("Saved");
+      } else {
+        const n = Number($("f-repeat").value)||1, now = Date.now(), series = n>1 ? "s"+now : null;
+        for (let k=0;k<n;k++) await col.add({...body, date: iso(addDays(parse(date),7*k)), createdAt: now+k, statusLog:{[status]:now}, ...(me?{createdBy:me}:{}), ...stamp(), ...(series?{series}:{})});
+        if (prefill?.fromBank) await db.collection("bank").doc(prefill.fromBank).update({status:"Planned"}).catch(()=>{});
+        toast(n>1 ? `Scheduled ${n} weeks` : "Added");
+      }
+      dlg.close();
+    } catch(e){ failed(e); } finally { $("saveBtn").disabled = false; }
+  });
+
+  function failed(e){
+    if (e && e.code==="permission-denied") { toast("Your account isn't on the planner's team list. Ask Jacinto to add you."); return; }
+    if (e && e.code==="not-found") { toast("That item was deleted by someone else."); return; }
+    toast("Couldn't save. Check your connection and try again.");
+  }
+  let tt; function toast(m){ const t=$("toast"); t.textContent=m; t.hidden=false; clearTimeout(tt); tt=setTimeout(()=>t.hidden=true,2600); }
+
+  $("prev").onclick = () => { state.week = addDays(state.week,-7); render(); };
+  $("next").onclick = () => { state.week = addDays(state.week,7); render(); };
+  $("thisweek").onclick = () => { state.week = monday(new Date()); render(); };
+  $("cPrev").onclick = () => { state.month = addMonths(state.month,-1); render(); };
+  $("cNext").onclick = () => { state.month = addMonths(state.month,1); render(); };
+  $("addBtn").onclick = () => openForm(null);
+  $("addPost").onclick = () => { const d = state.month; const ds = ym(d)===ym(new Date()) ? todayISO() : iso(d); openForm(null,{type:"Reel post",owner:"Anne",segment:"Breeder Upgrade",date:ds}); };
+  $("hideDone").onchange = e => { state.hideDone = e.target.checked; saveView(); render(); };
+
+  // ---------- campaign plan reference ----------
+  state.reference = {};
+  function renderPlan(){
+    const r = state.reference.plan || {};
+    if ($("planEdit").hidden) $("planView").textContent = r.text || (state.loaded ? "No plan written yet. Use Edit to add the campaign plan and posting rules." : "Loading…");
+    $("planEditBtn").hidden = !canWrite || !$("planEdit").hidden;
+    $("planMeta").textContent = r.updatedAt ? `Updated ${when(r.updatedAt)}` : "";
+    if (r.updatedBy) nameOf(r.updatedBy).then(n => { if (r.updatedAt) $("planMeta").textContent = `Updated by ${n}, ${when(r.updatedAt)}`; });
+  }
+  const planMode = editing => { $("planEdit").hidden=!editing; $("planView").hidden=editing; $("planSave").hidden=!editing; $("planCancel").hidden=!editing; $("planEditBtn").hidden=editing||!canWrite; };
+  $("planEditBtn").onclick = () => { $("planEdit").value = state.reference.plan?.text || ""; planMode(true); $("planEdit").focus(); };
+  $("planCancel").onclick = () => { planMode(false); renderPlan(); };
+  $("planSave").onclick = async () => {
+    try { await db.collection("reference").doc("plan").set({ text: $("planEdit").value, ...stamp() }); planMode(false); toast("Plan saved"); } catch(e){ failed(e); }
+  };
+  const _renderCal = renderCalendar; renderCalendar = function(){ _renderCal(); renderPlan(); };
+
+  // ---------- Excel export ----------
+  $("exportBtn").onclick = async () => {
+    if (!window.XLSX) { toast("The Excel export library didn't load. Reload the page and try again."); return; }
+    const byDate = (a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0);
+    const posts = state.items.filter(isPost).sort(byDate).map(p => ({ Week:"Week "+weekNo(p.date), Date:p.date, Day:DOW[(parse(p.date).getDay()+6)%7], Format:p.type.replace(" post",""),
+      "Target Segment":p.segment||"", Topic:p.title||"", CTA:p.cta||"", Caption:p.caption||"", Status:label(p.status,true), Notes:p.notes||"", "Post Link":p.link||"",
+      Views:p.views??"", Engagement:p.engagement??"" }));
+    const acts = state.items.filter(i=>!isPost(i)).sort(byDate).map(a => ({ Date:a.date, Time:a.time||"", Type:a.type, Activity:a.title||"", Who:a.owner, Status:label(a.status,false), Segment:a.segment||"", "Location / link":a.where||"", Notes:a.notes||"" }));
+    const bank = state.bank.slice().sort((a,b)=>(a.n||999)-(b.n||999)).map(b => ({ "#":b.n, "Content Idea":b.idea, "Audience Segment":b.segment, "Post Type":b.pillar, "Ideal Month":b.month, Notes:b.notes, Status:b.status }));
+    const ideas = state.ideas.slice().sort((a,b)=>(a.n||999)-(b.n||999)).map(i => ({ "#":i.n, Category:i.category, Idea:i.idea, "What it is":i.what, "Target Segment":i.segment, Status:i.status, "Suggested Timing":i.timing }));
+    const kpis = Object.keys(state.kpis).sort().map(k => { const s=state.kpis[k]; const row = { Month:k }; for (const [f,l] of SNAP_FIELDS) row[l] = s[f]??""; if (k!==BASE_KEY && k>=CFG.trialStart.slice(0,7)) { const mr = compute({kind:"month", start:parse(k+"-01"), months:1}); row["Score /100"] = mr.score.total; row["Incentive"] = mr.score.incentive; } row.Notes = s.notes||""; return row; });
+    const wb = XLSX.utils.book_new();
+    const add = (rows, name, widths) => { const ws = XLSX.utils.json_to_sheet(rows.length?rows:[{}]); if (widths) ws["!cols"]=widths.map(w=>({wch:w})); XLSX.utils.book_append_sheet(wb, ws, name); };
+    add(posts,"Content Calendar",[9,11,5,7,16,40,30,50,12,30,30,8,10]);
+    add(acts,"Activities",[11,8,18,40,10,12,16,30,30]);
+    add(kpis,"Monthly KPIs",[9,14,14,14,14,14,14,14,14,14,10,10,40]);
+    add(bank,"Content Bank",[4,50,16,16,16,40,10]);
+    add(ideas,"Marketing Ideas",[4,18,36,50,16,14,18]);
+    add([{ "Campaign plan & posting rules": state.reference.plan?.text || "" }],"Plan & Rules",[120]);
+    try { XLSX.writeFile(wb, `Prime Marketing Planner ${todayISO()}.xlsx`); toast("Excel export downloaded"); }
+    catch(e){ toast("Couldn't create the export. Try again in a moment."); }
+  };
+
+  setView(state.view);
+
+  // ---------- data (Firebase) ----------
+  const showNotice = (msg, btn) => { const n=$("notice"); n.replaceChildren(msg, ...(btn?[" ", btn]:[])); n.hidden=false; };
+  let unsubs = [];
+  async function importSeed(){
+    const seed = JSON.parse($("seed").textContent), now = Date.now();
+    const ops = []; for (const [col, docs] of Object.entries(seed)) for (const [id, data] of Object.entries(docs)) ops.push([col,id,data]);
+    $("notice").textContent = "Loading the planner data…";
+    try {
+      for (let i=0;i<ops.length;i+=400){ const b = db.batch(); ops.slice(i,i+400).forEach(([c,id,d])=>b.set(db.collection(c).doc(id), d)); await b.commit(); }
+      try { await db.collection("reference").doc("_meta").set({ importedAt: now, importedBy: me }); } catch(e){}
+      $("notice").hidden = true; toast(`Loaded ${ops.length} items`);
+    } catch(e){ failed(e); showNotice("The import didn't finish. Check your connection and try again.", el("button",{class:"small primary",type:"button",onclick:importSeed},"Try again")); }
+  }
+  function start(){
+    state.loaded = false; render();
+    const timer = setTimeout(()=>showNotice("Still connecting to the planner. What you see may be out of date."), 10000);
+    let firstAll = 0, seen = new Set();
+    const sub = (col, key, map) => db.collection(col).onSnapshot(snap => {
+      state[key] = map(snap.docs);
+      if (!snap.metadata.fromCache) { seen.add(col); if (seen.size===5) { clearTimeout(timer); if ($("notice").textContent.startsWith("Still connecting")) $("notice").hidden = true;
+        if (!firstAll++ && !state.items.length && !state.bank.length && !state.reference?._meta)
+          showNotice("This planner is empty. Load the posts, content bank, ideas and plan from the old planner?", el("button",{class:"small primary",type:"button",onclick:importSeed},"Load the data")); } }
+      state.loaded = true; render();
+    }, e => { clearTimeout(timer); state.loaded = true;
+      showNotice(e.code==="permission-denied" ? "Your account isn't on the planner's team list yet. Ask Jacinto to add your email." : "The planner stopped updating. Reload the page to reconnect."); render(); });
+    unsubs = [
+      sub("activities","items", docs => docs.map(d=>({id:d.id, ...d.data()}))),
+      sub("bank","bank", docs => docs.map(d=>({id:d.id, ...d.data()}))),
+      sub("ideas","ideas", docs => docs.map(d=>({id:d.id, ...d.data()}))),
+      sub("kpis","kpis", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
+      sub("reference","reference", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
+    ];
+  }
+  const cfgOk = window.PA_FIREBASE_CONFIG && !String(window.PA_FIREBASE_CONFIG.apiKey||"").startsWith("PASTE");
+  if (!window.firebase || !cfgOk) {
+    $("app").hidden = false; canWrite = false; state.loaded = true;
+    showNotice(!window.firebase ? "Firebase didn't load. Check the internet connection and reload." : "Setup needed: paste the Firebase config into the block at the top of index.html."); render();
+  } else {
+    firebase.initializeApp(window.PA_FIREBASE_CONFIG);
+    const auth = firebase.auth(); db = firebase.firestore();
+    auth.onAuthStateChanged(u => {
+      unsubs.forEach(f=>f()); unsubs = [];
+      if (!u) { me = null; $("app").hidden = true; $("login").hidden = false; return; }
+      me = (u.email||"").toLowerCase();
+      $("login").hidden = true; $("app").hidden = false;
+      nameOf(me).then(n => $("whoName").textContent = n);
+      start();
+    });
+    $("loginForm").addEventListener("submit", async ev => {
+      ev.preventDefault(); const email=$("l-email").value.trim(), pass=$("l-pass").value;
+      if (!email || !pass) { $("l-msg").textContent = "Enter your email and password."; return; }
+      $("l-btn").disabled = true; $("l-msg").textContent = "Signing in…";
+      try { await auth.signInWithEmailAndPassword(email, pass); $("l-msg").textContent = ""; $("l-pass").value=""; }
+      catch(e){ $("l-msg").textContent = ["auth/invalid-credential","auth/wrong-password","auth/user-not-found","auth/invalid-email"].includes(e.code) ? "That email and password don't match. Try again or reset your password." : e.code==="auth/too-many-requests" ? "Too many tries. Wait a few minutes or reset your password." : "Couldn't sign in. Check your connection and try again."; }
+      finally { $("l-btn").disabled = false; }
+    });
+    $("l-reset").onclick = async () => {
+      const email=$("l-email").value.trim(); if (!email) { $("l-msg").textContent = "Type your email first, then tap Forgot password."; $("l-email").focus(); return; }
+      try { await auth.sendPasswordResetEmail(email); } catch(e){}
+      $("l-msg").textContent = "If that email is on the team, a reset link is on its way. Check spam too.";
+    };
+    $("signOut").onclick = () => auth.signOut();
+  }
+})();
+</script>
+
+</body>
+</html>
