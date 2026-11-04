@@ -12,6 +12,7 @@
   --fg:#12143a; --muted:#5b5f80;
   --brand:#0302c9; --brand-ink:#ffffff; --navy:#0b0d4a; --red:#db0d0f;
   --ok:#11845b; --warn:#b26a00; --review:#7a2fd0; --sched:#0b7a75;
+  --s-small:#8cc5be; --s-ccs3:#2a9d8f; --s-ccs4:#0b7a75; --s-mtc:#064744;
   --c-anne:#c2185b; --c-jacinto:#0302c9; --c-christian:#0b7a75; --c-yuan:#b26a00;
   --f-display:"Montserrat",system-ui,sans-serif;
   --f-body:"Source Sans 3",system-ui,sans-serif;
@@ -22,6 +23,7 @@
   --fg:#eceefc; --muted:#a3a7cf;
   --brand:#6f6dff; --brand-ink:#0a0b22; --navy:#05061a; --red:#ff5a5c;
   --ok:#3fcf95; --warn:#f2b04a; --review:#b88cff; --sched:#3fd1c9;
+  --s-small:#b6ece5; --s-ccs3:#6fd6c9; --s-ccs4:#3fb3a8; --s-mtc:#1f857c;
   --c-anne:#ff6fa6; --c-jacinto:#8f8dff; --c-christian:#3fd1c9; --c-yuan:#f2b04a;
   color-scheme:dark}}
 :root[data-theme="dark"]{
@@ -29,6 +31,7 @@
   --fg:#eceefc; --muted:#a3a7cf;
   --brand:#6f6dff; --brand-ink:#0a0b22; --navy:#05061a; --red:#ff5a5c;
   --ok:#3fcf95; --warn:#f2b04a; --review:#b88cff; --sched:#3fd1c9;
+  --s-small:#b6ece5; --s-ccs3:#6fd6c9; --s-ccs4:#3fb3a8; --s-mtc:#1f857c;
   --c-anne:#ff6fa6; --c-jacinto:#8f8dff; --c-christian:#3fd1c9; --c-yuan:#f2b04a;
   color-scheme:dark}
 *{box-sizing:border-box}
@@ -139,6 +142,34 @@ textarea{min-height:70px;resize:vertical}
 .actions .left{margin-right:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .confirm{font-size:13px;color:var(--red)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;z-index:20}
+.mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.mhead{font-family:var(--f-display);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 6px 2px}
+.mcell{background:var(--surface);border:1px solid var(--line);border-radius:8px;min-height:112px;padding:6px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.mcell.out{background:transparent;border-style:dashed;opacity:.5}
+.mcell.today{box-shadow:inset 0 0 0 2px var(--brand)}
+.mcell.hol{border-top:3px solid var(--red)}
+.mday{display:flex;justify-content:space-between;align-items:baseline;gap:4px}
+.mday b{font-family:var(--f-mono);font-size:12.5px}
+.mday .wd{display:none;font-family:var(--f-display);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.mhol{font-size:10.5px;color:var(--red);font-weight:600;line-height:1.2}
+.pchip{display:grid;gap:2px;text-align:left;width:100%;min-width:0;padding:4px 6px;border-radius:6px;border:1px solid var(--line);border-left:4px solid var(--sc,var(--muted));background:var(--bg);font-size:12px;line-height:1.25}
+.pchip .pt{font-weight:600;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pchip .pt.tbd{font-weight:500;font-style:italic;color:var(--muted)}
+.pchip .pm{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:10.5px;color:var(--muted)}
+.pchip.live{opacity:.7}
+.madd{margin-top:auto;border:1px dashed var(--line);background:transparent;color:var(--muted);font-size:11.5px;padding:2px;opacity:0}
+.mcell:hover .madd,.madd:focus-visible{opacity:1}
+.mlegend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.mlegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;background:var(--sc)}
+.seg-breeder{--sc:var(--brand)} .seg-small{--sc:var(--s-small)} .seg-ccs3{--sc:var(--s-ccs3)} .seg-ccs4{--sc:var(--s-ccs4)} .seg-mtc{--sc:var(--s-mtc)} .seg-unset{--sc:var(--warn)} .seg-hol{--sc:var(--red)}
+.vtoggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.vtoggle button{border:none;border-radius:0;padding:6px 12px;font-size:13px}
+.vtoggle button[aria-pressed="true"]{background:var(--navy);color:#fff}
+@media (max-width:760px){
+  .mgrid{grid-template-columns:minmax(0,1fr)} .mhead{display:none}
+  .mcell{min-height:0} .mcell.out,.mcell.nopost{display:none}
+  .mday .wd{display:inline} .madd{opacity:1}
+}
 pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;background:var(--sunk);padding:12px;border-radius:8px;margin:0;max-height:320px;overflow:auto}
 
 /* login */
@@ -235,7 +266,10 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       <div class="actions" style="margin-top:8px"><span class="hint" id="planMeta"></span><button type="button" class="small" id="planEditBtn">Edit</button><button type="button" class="small" id="planCancel" hidden>Cancel</button><button type="button" class="small primary" id="planSave" hidden>Save</button></div>
     </details>
     <div class="sumrow" id="calSum"></div>
-    <div class="tablewrap"><table>
+    <div class="bar"><div class="mlegend" id="calLegend"></div>
+      <div class="vtoggle" role="group" aria-label="Calendar view"><button type="button" id="vCal" aria-pressed="true">Calendar</button><button type="button" id="vList" aria-pressed="false">List</button></div></div>
+    <div id="calGrid" class="mgrid" aria-label="Month calendar"></div>
+    <div class="tablewrap" id="calList" hidden><table>
       <thead><tr><th>Week</th><th>Date</th><th>Format</th><th>Segment</th><th>Topic</th><th>CTA</th><th>Status</th><th>Link</th><th class="num">Views</th><th class="num">Engage.</th></tr></thead>
       <tbody id="calBody"></tbody>
     </table></div>
@@ -374,7 +408,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   const ctaFor = s => isBreeder(s) ? "Book a free farm upgrade consult" : isBroiler(s) ? "Book a free initial farm consult" : s===HOLIDAY_SEG ? "Holiday greeting (no sales CTA)" : "";
   const CTA_TEXTS = ["Book a free farm upgrade consult","Book a free initial farm consult","Holiday greeting (no sales CTA)"];
   const HOLIDAYS = {"2026-11-01":"All Saints' Day","2026-11-02":"All Souls' Day","2026-11-30":"Bonifacio Day","2026-12-08":"Immaculate Conception","2026-12-24":"Christmas Eve","2026-12-25":"Christmas Day","2026-12-30":"Rizal Day","2026-12-31":"Last day of the year","2027-01-01":"New Year's Day"};
-  const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]; // weeks run Sunday to Saturday
   const BANK_ST = ["In bank","Planned","Shot","Used"];
   const IDEA_ST = ["For discussion","Approved","Ongoing","Done","Dropped"];
 
@@ -385,6 +419,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
   const addMonths = (d,n) => new Date(d.getFullYear(), d.getMonth()+n, 1);
   const monday = d => { const x = new Date(d.getFullYear(),d.getMonth(),d.getDate()); return addDays(x,-((x.getDay()+6)%7)); };
+  const weekStart = d => { const x = new Date(d.getFullYear(),d.getMonth(),d.getDate()); return addDays(x,-x.getDay()); };
   const todayISO = () => iso(new Date());
   const ym = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
   const monthName = (d,o={month:"long",year:"numeric"}) => d.toLocaleDateString("en-US",o);
@@ -395,9 +430,9 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   const fmtN = n => n==null||isNaN(n) ? "—" : Number(n).toLocaleString("en-US");
   const pct = n => n==null||isNaN(n) ? "—" : Math.round(n*100)+"%";
   const published = it => it.status==="done" || (it.status==="scheduled" && it.date<=todayISO());
-  const weekNo = ds => { const s = monday(parse(CFG.trialStart)); return Math.floor((parse(ds)-s)/(7*864e5))+1; };
+  const weekNo = ds => { const s = weekStart(parse(CFG.trialStart)); return Math.floor((parse(ds)-s)/(7*864e5))+1; };
 
-  let state = { view:"week", week: monday(new Date()), month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  let state = { view:"week", week: weekStart(new Date()), month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     who:"All", hideDone:false, items:[], bank:[], ideas:[], kpis:{}, loaded:false, period:null };
   try { const s = JSON.parse(localStorage.getItem("planner-view")||"{}"); if(s.who) state.who=s.who; if(s.hideDone) state.hideDone=true; if(s.view) state.view=s.view; } catch(e){}
   if (location.hash && ["week","calendar","reports","ideas"].includes(location.hash.slice(1))) state.view = location.hash.slice(1);
@@ -489,6 +524,23 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     $("addBtn").hidden = !canWrite;
   }
 
+  const segClass = s => isBreeder(s) ? "seg-breeder" : s==="Broiler - Small scale" ? "seg-small" : s==="Broiler - CCS3" ? "seg-ccs3" : s==="Broiler - CCS4" ? "seg-ccs4" : s==="Broiler - MTC" ? "seg-mtc" : s===HOLIDAY_SEG ? "seg-hol" : isBroiler(s) ? "seg-unset" : "";
+  function renderMonthGrid(m, posts){
+    const g = $("calGrid"); g.replaceChildren(...DOW.map(d=>el("div",{class:"mhead"},d)));
+    // Sunday-first month grid
+    const last = addDays(addMonths(m,1),-1), first = addDays(m, -m.getDay()), end = addDays(last, 6-last.getDay()), today = todayISO();
+    for (let d = new Date(first); d <= end; d = addDays(d,1)) {
+      const ds = iso(d), inMonth = d.getMonth()===m.getMonth();
+      const dayPosts = inMonth ? posts.filter(p=>p.date===ds) : [];
+      g.append(el("div",{class:`mcell${inMonth?"":" out"}${ds===today?" today":""}${HOLIDAYS[ds]&&inMonth?" hol":""}${dayPosts.length?"":" nopost"}`},
+        el("div",{class:"mday"}, el("b",{}, String(d.getDate())), el("span",{class:"wd"}, d.toLocaleDateString("en-US",{weekday:"short", month:"short"})), inMonth && d.getDay()===0 ? el("span",{class:"hint",style:"font-size:10.5px"},"W"+weekNo(ds)) : null),
+        HOLIDAYS[ds] && inMonth ? el("div",{class:"mhol"}, HOLIDAYS[ds]) : null,
+        dayPosts.map(p => el("button",{type:"button", class:`pchip ${segClass(p.segment)}${published(p)?" live":""}`, onclick:()=>openForm(p), title:`${p.type} · ${p.segment||"No segment"} · ${label(p.status,true)}`},
+          el("span",{class:"pt"+(p.title?"":" tbd")}, p.title || "Topic not picked yet"),
+          el("span",{class:"pm"}, el("span",{class:"type"}, p.type.replace(" post","").replace(" video","")), el("span",{class:"st st-"+p.status}, label(p.status,true)), p.needsDocJorge && !published(p) ? el("span",{style:"color:var(--red);font-weight:600"},"Doc Jorge") : null))),
+        inMonth && canWrite ? el("button",{type:"button",class:"madd","aria-label":"Add a post on "+ds, onclick:()=>openForm(null,{type:"Reel post",owner:"Anne",segment:"Breeder",date:ds})},"+ Post") : null));
+    }
+  }
   function renderCalendar(){
     const m = state.month, key = ym(m);
     $("cRange").textContent = monthName(m);
@@ -501,13 +553,18 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       el("span",{},"All broiler ", el("b",{},reg.filter(p=>isBroiler(p.segment)).length)), ...subs.map(([s,n])=>el("span",{},s.replace("Broiler - ","↳ ")+" ", el("b",{},n))), el("span",{},"Holiday ", el("b",{},posts.length-reg.length)),
       el("span",{},"Breeder share of regular posts ", el("b",{}, reg.length?pct(br.length/reg.length):"—")),
       el("span",{},"Posted ", el("b",{}, posts.filter(published).length)));
+    const listMode = state.calMode==="list";
+    $("vCal").setAttribute("aria-pressed", String(!listMode)); $("vList").setAttribute("aria-pressed", String(listMode));
+    $("calGrid").hidden = listMode; $("calList").hidden = !listMode;
+    $("calLegend").replaceChildren(...[["seg-breeder","Breeder"],["seg-small","Small scale"],["seg-ccs3","CCS3"],["seg-ccs4","CCS4"],["seg-mtc","MTC"],["seg-hol","Holiday"],...(posts.some(p=>p.segment===LEGACY_BROILER)?[["seg-unset","Broiler, type not set"]]:[])].map(([c,l])=>el("span",{class:c},el("i"),l)));
+    if (!listMode) renderMonthGrid(m, posts);
     const body = $("calBody"); body.replaceChildren();
     if (!posts.length) body.append(el("tr",{}, el("td",{colspan:"10",class:"empty"}, state.loaded ? `No posts planned for ${monthName(m)} yet. Use + Add post.` : "Loading…")));
     for (const p of posts){
       const d = parse(p.date);
       body.append(el("tr",{class:"click"+(p.segment==="All Audiences"?" hol":""), tabindex:"0", onclick:()=>openForm(p), onkeydown:e=>{if(e.key==="Enter")openForm(p);}},
         el("td",{class:"time"}, "W"+weekNo(p.date)),
-        el("td",{style:"white-space:nowrap"}, el("span",{class:"time"}, short(p.date)), " ", el("span",{class:"hint"}, DOW[(d.getDay()+6)%7])),
+        el("td",{style:"white-space:nowrap"}, el("span",{class:"time"}, short(p.date)), " ", el("span",{class:"hint"}, DOW[d.getDay()])),
         el("td",{}, p.type.replace(" post","")),
         el("td",{}, el("span",{class:"seg"}, p.segment||"—")),
         el("td",{class:"wide"}, p.title || el("span",{class:"hint"},"Topic not picked yet")),
@@ -819,7 +876,10 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
 
   $("prev").onclick = () => { state.week = addDays(state.week,-7); render(); };
   $("next").onclick = () => { state.week = addDays(state.week,7); render(); };
-  $("thisweek").onclick = () => { state.week = monday(new Date()); render(); };
+  $("thisweek").onclick = () => { state.week = weekStart(new Date()); render(); };
+  try { state.calMode = localStorage.getItem("planner-calmode") || "calendar"; } catch(e){ state.calMode = "calendar"; }
+  const setCalMode = mode => { state.calMode = mode; try { localStorage.setItem("planner-calmode", mode); } catch(e){} render(); };
+  $("vCal").onclick = () => setCalMode("calendar"); $("vList").onclick = () => setCalMode("list");
   $("cPrev").onclick = () => { state.month = addMonths(state.month,-1); render(); };
   $("cNext").onclick = () => { state.month = addMonths(state.month,1); render(); };
   $("addBtn").onclick = () => openForm(null);
@@ -847,7 +907,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   $("exportBtn").onclick = async () => {
     if (!window.XLSX) { toast("The Excel export library didn't load. Reload the page and try again."); return; }
     const byDate = (a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0);
-    const posts = state.items.filter(isPost).sort(byDate).map(p => ({ Week:"Week "+weekNo(p.date), Date:p.date, Day:DOW[(parse(p.date).getDay()+6)%7], Format:p.type.replace(" post",""),
+    const posts = state.items.filter(isPost).sort(byDate).map(p => ({ Week:"Week "+weekNo(p.date), Date:p.date, Day:DOW[parse(p.date).getDay()], Format:p.type.replace(" post",""),
       "Target Segment":p.segment||"", Topic:p.title||"", CTA:p.cta||"", Caption:p.caption||"", Status:label(p.status,true), Notes:p.notes||"", "Post Link":p.link||"",
       Views:p.views??"", Engagement:p.engagement??"" }));
     const acts = state.items.filter(i=>!isPost(i)).sort(byDate).map(a => ({ Date:a.date, Time:a.time||"", Type:a.type, Activity:a.title||"", Who:a.owner, Status:label(a.status,false), Segment:a.segment||"", "Location / link":a.where||"", Notes:a.notes||"" }));
