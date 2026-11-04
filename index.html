@@ -710,7 +710,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       {l:"Best post", v:r.top?fmtN(r.top.views):"—", g:"na", sub:r.top?`${r.top.title||r.top.type} (${short(r.top.date)})`:"Add views to posts to see the best one"},
     ]});
     secs.push({sec:"Inquiries & deal bonus", rows:[
-      {l:"Qualified project inquiries", v:fmtN(r.qualified), g:grade(r.qualified, CFG.qualifiedPerMonth*M, 0.5), sub:`target ${CFG.qualifiedPerMonth} a month · Inbound deals that reached Qualified in the CRM`},
+      {l:"Qualified project inquiries", v:fmtN(r.qualified), g:grade(r.qualified, CFG.qualifiedPerMonth*M, 0.5), sub:`target ${CFG.qualifiedPerMonth} a month · marketing deals with the land, market and timeline gates ticked in the CRM`},
       {l:"Answered within 24 hrs", v:pct(r.answered24), g:grade(r.answered24, CFG.answered24, 0.947), sub:r.inquiries!=null?`${fmtN(r.answered)} of ${fmtN(r.inquiries)} inquiries · target 95%`:"Enter inquiries received and answered"},
       {l:"Passed to sales within 1 working day", v:r.qualified?`${fmtN(r.toSales)} of ${fmtN(r.qualified)}`:"—", g:r.qualified?grade((r.toSales||0)/r.qualified,1,0.9):"na", sub:"qualified leads go to sales within 1 working day"},
       {l:"Marketing leads in the CRM", v:fmtN(r.months.some(k=>state.kpis[k]?.crm)?r.months.reduce((a,k)=>a+(state.kpis[k]?.crm?.crmLeads||0),0):null), g:"na", sub:"new deals with source Inbound"},
@@ -1025,7 +1025,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
         el("td",{}, el("span",{class:"no-print"}, st), el("span",{class:"print-only"}, ({pending:"Pending",claimed:"Claimed with retainer",paid:"Paid"})[d.status]||d.status)));
     }) : [el("tr",{}, el("td",{colspan:"5",class:"empty"},"No closed deals logged yet."))];
     $("v-incentives").replaceChildren(
-      el("div",{class:"bar no-print"}, el("h2",{class:"sec"},"Incentives"), el("div",{class:"weeknav"}, sel, el("button",{type:"button",onclick:()=>window.print()},"Print / save PDF"), el("button",{type:"button",onclick:()=>exportStatement(p,months,pool,deals)},"Export statement"))),
+      el("div",{class:"bar no-print"}, el("h2",{class:"sec"},"Incentives"), el("div",{class:"weeknav"}, sel, el("button",{type:"button",onclick:()=>window.print()},"Print / save PDF"), el("button",{type:"button",class:"primary",onclick:()=>openStatement(p,months,pool,deals)},"Billing statement"))),
       crmPanel(),
       el("p",{class:"hint no-print"},"Only you can see this tab. Lock each month's score after the monthly sync and record the date Doc Jorge confirmed it; locked scores don't change if data is edited later."),
       el("div",{class:"stats no-print"},
@@ -1047,16 +1047,122 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
         el("p",{class:"print-only",style:"margin-top:40px"},"Prepared by: Jacinto Manahan, BRICATO Digital Marketing          Confirmed by: Dr. Jorge Manahan, Prime Agritech")),
       dealForm);
   }
-  function exportStatement(p, months, pool, deals){
-    const wb = XLSX.utils.book_new();
-    const rows = months.map(m=>({ Month:m.k, "Score /100":m.future?"":m.total, Tier:m.future?"":tierOf(m.total), Incentive:m.future?"":m.incentive, "Locked on":m.lock?.lockedAt?new Date(m.lock.lockedAt).toISOString().slice(0,10):"", "Confirmed by Doc Jorge":m.lock?.confirmedAt||"Pending" }));
-    rows.push({ Month:"Pooled incentive", Incentive:pool });
-    const ws = XLSX.utils.json_to_sheet(rows); ws["!cols"]=[{wch:18},{wch:11},{wch:12},{wch:12},{wch:12},{wch:22}]; XLSX.utils.book_append_sheet(wb, ws, "Incentive");
-    const br = []; months.filter(m=>m.lock?.breakdown).forEach(m=>m.lock.breakdown.forEach(b=>br.push({Month:m.k, KPI:b.label, Value:b.v, Points:b.pts})));
-    if (br.length) { const w2 = XLSX.utils.json_to_sheet(br); w2["!cols"]=[{wch:10},{wch:36},{wch:12},{wch:8}]; XLSX.utils.book_append_sheet(wb, w2, "Score breakdown"); }
-    const w3 = XLSX.utils.json_to_sheet(deals.length?deals.map(d=>({"Client / project":d.client, "Contract signed":d.contractDate, "Lead by":d.leadBy, Bonus:d.amount||CFG.dealBonus, Status:d.status})):[{}]); w3["!cols"]=[{wch:30},{wch:14},{wch:10},{wch:10},{wch:12}]; XLSX.utils.book_append_sheet(wb, w3, "Deal bonuses");
-    try { XLSX.writeFile(wb, `BRICATO Incentive Statement - Payout ${p.n}.xlsx`); toast("Statement downloaded"); } catch(e){ toast("Couldn't create the statement. Try again."); }
+  // ---------- Billing statement for a payout period (opens a printable page) ----------
+  function openStatement(p, months, pool, deals){
+    const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+    const php = n => "₱" + Number(n||0).toLocaleString("en-US");
+    const dLong = s => s ? parse(String(s).slice(0,10)).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "";
+    const pStart = iso(p.start), pEnd = iso(addDays(p.end,-1)), periodTxt = `${monthName(p.start)} – ${monthName(addMonths(p.end,-1))}`;
+    const inPeriod = s => s && s.slice(0,10) >= pStart && s.slice(0,10) <= pEnd;
+    const scored = months.filter(m=>!m.future);
+    const allConfirmed = months.every(m=>m.lock?.confirmedAt);
+    const pay = state.inc["payout-"+p.n] || {};
+    const crmOn = !!crmUser && state.crmDeals.length>=0 && state.crmSyncedAt;
+    const createdOn = d => new Date(d.created_at).toLocaleDateString("en-CA",{timeZone:"Asia/Manila"});
+    const val = d => Number(d.quoted_value || d.value) || 0;
+    // qualified marketing leads in the period (land, market, timeline), with their current CRM status
+    const qualified = state.crmDeals.map(d => ({ d, on: allGates(d) ? (reachedOn(d,"Qualified") || createdOn(d)) : null }))
+      .filter(x => inPeriod(x.on)).sort((a,b)=>a.on.localeCompare(b.on));
+    const periodDeals = deals.filter(d => inPeriod(d.contractDate) && d.status!=="paid");
+    const dealTotal = periodDeals.reduce((a,d)=>a+(d.amount||CFG.dealBonus),0);
+    // sales funnel per month from the CRM
+    const funnel = months.map(m => {
+      const k = m.k, t = crmMonth(k);
+      return { k, label: monthName(parse(k+"-01"),{month:"short",year:"numeric"}), future:m.future, leads:t.crmLeads, qualified:t.qualified, consults:t.consults, closed:t.closedDeals, wonValue:t.won.reduce((a,d)=>a+val(d),0) };
+    });
+    const sum = f => funnel.filter(x=>!x.future).reduce((a,x)=>a+x[f],0);
+    const periodLeads = state.crmDeals.filter(d=>inPeriod(createdOn(d)));
+    const openPipe = periodLeads.filter(d=>d.status!=="lost" && d.stage!=="Closed Sale");
+    const pipeValue = openPipe.reduce((a,d)=>a+val(d),0);
+    const lateStage = openPipe.filter(d=>stageRank(d.stage)>=stageRank("Proposal"));
+    const rate = (a,b) => b ? Math.round(a/b*100)+"%" : "—";
+    const stmtNo = `BRC-PAC-P${p.n}-${todayISO().replace(/-/g,"")}`;
+    const kpiNames = ["Qualified project inquiries","Content published on schedule","Facebook views","Facebook followers gained","Facebook engagement","Inquiries answered within 24 hrs","First edits approved, ≤1 revision","YouTube subscribers gained"];
+    const fmtV = (r) => r.v==null ? "—" : (MATRIX.find(x=>x.k===r.k)?.pct ? Math.round(r.v*100)+"%" : Number(r.v).toLocaleString("en-US"));
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Billing Statement ${esc(stmtNo)}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+:root{--ink:#12143a;--muted:#5b5f80;--line:#d7dae8;--navy:#0b0d4a;--accent:#0302c9;--red:#db0d0f;--soft:#f3f4f9}
+*{box-sizing:border-box} body{margin:0;background:var(--soft);color:var(--ink);font:14px/1.45 "Source Sans 3",system-ui,sans-serif}
+.page{max-width:860px;margin:24px auto;background:#fff;padding:40px 44px;border:1px solid var(--line)}
+h1,h2,h3{font-family:Montserrat,system-ui,sans-serif;margin:0} h1{font-size:24px;letter-spacing:-.01em} h2{font-size:15px;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--navy)} h3{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.top{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;border-bottom:3px solid var(--navy);padding-bottom:16px;position:relative}
+.top::after{content:"";position:absolute;left:0;bottom:-7px;width:72px;height:3px;background:var(--red)}
+.meta{display:grid;grid-template-columns:auto auto;gap:2px 14px;font-size:13px;align-content:start} .meta b{color:var(--muted);font-weight:600}
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:18px} .parties p{margin:4px 0 0}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px} th{text-align:left;font-family:Montserrat,sans-serif;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1.5px solid var(--ink);padding:7px 8px}
+td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top} .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(--ink);font-size:15px;font-family:Montserrat,sans-serif}
+.note{color:var(--muted);font-size:12px;margin:8px 0 0} .draft{display:inline-block;margin-top:8px;padding:3px 10px;border:1.5px solid var(--red);color:var(--red);font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;letter-spacing:.08em}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:6px 0 4px} .tile{border:1px solid var(--line);padding:10px 12px} .tile b{display:block;font-family:Montserrat,sans-serif;font-size:20px} .tile span{color:var(--muted);font-size:12px}
+.sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:48px} .sign div{border-top:1px solid var(--ink);padding-top:6px;font-size:12.5px}
+.bar{max-width:860px;margin:16px auto 0;display:flex;gap:8px;justify-content:flex-end} .bar button{font:600 13px Montserrat,sans-serif;padding:8px 14px;border-radius:8px;border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer}
+.bar button.alt{background:#fff;color:var(--navy)}
+@media (max-width:640px){.page{padding:22px 16px;margin:0}.parties,.sign{grid-template-columns:1fr}.tiles{grid-template-columns:1fr 1fr}}
+@media print{body{background:#fff}.bar{display:none}.page{border:none;margin:0;padding:0;max-width:none} h2{break-after:avoid} tr{break-inside:avoid} .pb{break-before:page}}
+</style></head><body>
+<div class="bar"><button class="alt" onclick="window.close()">Close</button><button onclick="window.print()">Print / save PDF</button></div>
+<div class="page">
+  <div class="top">
+    <div><h3>BRICATO Digital Marketing</h3><h1>Billing Statement</h1><div class="note" style="margin-top:4px">Performance incentive · Payout ${p.n}</div>${allConfirmed?"":`<div class="draft">DRAFT · NOT ALL MONTHS CONFIRMED</div>`}</div>
+    <div class="meta"><b>Statement no.</b><span>${esc(stmtNo)}</span><b>Date</b><span>${dLong(todayISO())}</span><b>Period</b><span>${esc(periodTxt)}</span><b>Agreement</b><span>Marketing Services Agreement, Oct 22, 2026</span>${pay.status?`<b>Status</b><span>${esc(({accruing:"Accruing",ready:"Ready to claim",submitted:"Submitted to finance",paid:"Paid"})[pay.status]||pay.status)}</span>`:""}</div>
+  </div>
+  <div class="parties">
+    <div><h3>Bill to</h3><p><strong>Prime Agritech Corporation</strong><br>Attn: Finance · Dr. Jorge Manahan<br>San Fernando, Pampanga, Philippines</p></div>
+    <div><h3>From</h3><p><strong>BRICATO Digital Marketing</strong><br>Anne Nu · Jacinto Manahan<br>Independent contractors</p></div>
+  </div>
+
+  <h2>Amount due</h2>
+  <table>
+    <thead><tr><th>Description</th><th>Score</th><th>Tier</th><th>Confirmed</th><th class="num">Amount</th></tr></thead>
+    <tbody>
+      ${months.map(m => `<tr><td>Performance incentive · ${esc(monthName(parse(m.k+"-01")))}</td><td>${m.future?"—":m.total+"/100"}</td><td>${m.future?"Not yet scored":esc(tierOf(m.total))}</td><td>${m.lock?.confirmedAt?dLong(m.lock.confirmedAt):"Pending"}</td><td class="num">${m.future?"—":php(m.incentive)}</td></tr>`).join("")}
+      <tr><td colspan="4" style="font-weight:600">Subtotal · pooled performance incentive</td><td class="num" style="font-weight:600">${php(pool)}</td></tr>
+      ${periodDeals.map(d => `<tr><td>Deal bonus · ${esc(d.client)}</td><td colspan="2">Contract signed ${dLong(d.contractDate)}</td><td>${esc(({pending:"Pending",claimed:"Claimed with retainer"})[d.status]||"")}</td><td class="num">${php(d.amount||CFG.dealBonus)}</td></tr>`).join("")}
+      ${periodDeals.length?`<tr><td colspan="4" style="font-weight:600">Subtotal · deal bonuses</td><td class="num" style="font-weight:600">${php(dealTotal)}</td></tr>`:""}
+    </tbody>
+    <tfoot><tr class="total"><td colspan="4">Total</td><td class="num">${php(pool+dealTotal)}</td></tr></tfoot>
+  </table>
+  <p class="note">Incentive per the performance matrix: 85–100 = ₱15,000, 50–84 = ₱10,000, below 50 = ₱0 a month, pooled and paid 6 months after signing, then every 3 months. Deal bonus: ₱5,000 per signed Prime project contract from a marketing-generated lead${periodDeals.length?", normally paid with the next monthly retainer":""}. VAT, withholding tax and official receipt to be applied as agreed with Prime finance.</p>
+
+  <h2>Business results for the period</h2>
+  ${crmOn ? `
+  <div class="tiles">
+    <div class="tile"><b>${sum("qualified")}</b><span>Qualified project inquiries</span></div>
+    <div class="tile"><b>${sum("consults")}</b><span>Consults / site visits</span></div>
+    <div class="tile"><b>${sum("closed")}</b><span>Closed deals</span></div>
+    <div class="tile"><b>${php(pipeValue)}</b><span>Open pipeline from marketing leads</span></div>
+  </div>
+  <table>
+    <thead><tr><th>Month</th><th class="num">New marketing leads</th><th class="num">Qualified</th><th class="num">Consults / site visits</th><th class="num">Closed</th><th class="num">Won value</th></tr></thead>
+    <tbody>${funnel.map(x => `<tr><td>${esc(x.label)}</td>${x.future?`<td colspan="5" class="num" style="color:var(--muted)">Not yet</td>`:`<td class="num">${x.leads}</td><td class="num">${x.qualified}</td><td class="num">${x.consults}</td><td class="num">${x.closed}</td><td class="num">${php(x.wonValue)}</td>`}</tr>`).join("")}</tbody>
+    <tfoot><tr><td>Period</td><td class="num">${sum("leads")}</td><td class="num">${sum("qualified")}</td><td class="num">${sum("consults")}</td><td class="num">${sum("closed")}</td><td class="num">${php(sum("wonValue"))}</td></tr></tfoot>
+  </table>
+  <p class="note">Lead to qualified: ${rate(sum("qualified"),sum("leads"))} · Qualified to closed: ${rate(sum("closed"),sum("qualified"))} · ${lateStage.length} lead${lateStage.length===1?"":"s"} from this period at Proposal stage or later · Baseline before BRICATO: about 5 inbound leads a month (Aug–Oct 2026). Source: Prime Sales CRM, deals with source Inbound/Marketing, as of ${dLong(todayISO())}.</p>
+
+  <h2>Qualified leads generated</h2>
+  <table>
+    <thead><tr><th>Qualified on</th><th>Client / farm</th><th>Location</th><th>Project</th><th>Current stage</th><th class="num">Value</th></tr></thead>
+    <tbody>${qualified.length ? qualified.map(({d,on}) => `<tr><td style="white-space:nowrap">${dLong(on)}</td><td><strong>${esc(d.client||"")}</strong>${d.farm?`<br><span style="color:var(--muted)">${esc(d.farm)}</span>`:""}</td><td>${esc(d.location||"")}</td><td>${esc([d.farm_type, d.house_model, d.num_bldgs?d.num_bldgs+" bldg"+(d.num_bldgs>1?"s":""):""].filter(Boolean).join(" · "))}</td><td>${esc(d.stage)}${d.status==="lost"?" (lost)":""}</td><td class="num">${val(d)?php(val(d)):"—"}</td></tr>`).join("") : `<tr><td colspan="6" style="color:var(--muted)">No qualified marketing leads in this period yet.</td></tr>`}</tbody>
+  </table>
+  <p class="note">Qualified = land, market and timeline confirmed in the CRM.</p>` : `<p class="note" style="color:var(--red)">Connect the Prime Sales CRM in the planner and open this statement again to include the qualified leads and sales results.</p>`}
+
+  <h2 class="pb">Score basis by month</h2>
+  <table>
+    <thead><tr><th>KPI (weight)</th>${scored.map(m=>`<th class="num">${esc(monthName(parse(m.k+"-01"),{month:"short"}))}</th>`).join("")}</tr></thead>
+    <tbody>${MATRIX.map(x => `<tr><td>${esc(x.label)} (${x.w})</td>${scored.map(m => { const src = m.lock?.breakdown ? m.lock.breakdown.find(b=>b.k===x.k) : m.live.rows.find(r=>r.k===x.k); return `<td class="num">${src?fmtV({k:x.k,v:src.v}):"—"}<br><span style="color:var(--muted);font-size:11px">${src?src.pts:0} pts</span></td>`; }).join("")}</tr>`).join("")}</tbody>
+    <tfoot><tr><td>Score</td>${scored.map(m=>`<td class="num">${m.total}/100</td>`).join("")}</tr></tfoot>
+  </table>
+  <p class="note">Each KPI earns its full weight at the excellent threshold and half at the acceptable threshold. Scores are locked after each monthly sales and marketing sync and confirmed by Doc Jorge.${scored.map(m=>state.kpis[m.k]?.evidence).filter(Boolean).length?" Evidence (Meta Insights and YouTube Studio): "+scored.filter(m=>state.kpis[m.k]?.evidence).map(m=>`${esc(monthName(parse(m.k+"-01"),{month:"short"}))}: ${esc(state.kpis[m.k].evidence)}`).join(" · "):""}</p>
+
+  <div class="sign"><div>Prepared by<br><strong>Jacinto Manahan</strong>, BRICATO Digital Marketing</div><div>Confirmed by<br><strong>Dr. Jorge Manahan</strong>, Prime Agritech Corporation</div></div>
+</div></body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { toast("Your browser blocked the new tab. Allow pop-ups for this site and try again."); return; }
+    w.document.open(); w.document.write(html); w.document.close();
   }
+
 
   // ---------- Prime Sales CRM → marketing KPIs (read-only, Jacinto's own CRM login) ----------
   // Deals whose source is "Inbound" (or "Marketing", for when the CRM label is renamed) count as marketing leads.
@@ -1079,19 +1185,22 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     if (stageRank(d.stage)>=r) return stage==="Closed Sale" && d.won_date ? d.won_date : created;
     return null;
   }
+  // Qualified = land, market and timeline gates ticked (money is not required)
+  const allGates = d => { const g = d.gates || {}; return !!(g.land && g.market && g.timeline); };
   function crmMonth(k){
     const inMonth = s => (s||"").slice(0,7)===k;
     const deals = state.crmDeals;
     const created = deals.filter(d=>inMonth(new Date(d.created_at).toLocaleDateString("en-CA",{timeZone:"Asia/Manila"})));
     const won = deals.filter(d=>d.stage==="Closed Sale" && inMonth(d.won_date || reachedOn(d,"Closed Sale")));
     return { crmLeads: created.length,
-      qualified: deals.filter(d=>inMonth(reachedOn(d,"Qualified"))).length,
+      // Qualified = land, market and timeline gates ticked, counted in the month it reached Qualified (or was created, if it never moved stage)
+      qualified: deals.filter(d=>allGates(d) && inMonth(reachedOn(d,"Qualified") || new Date(d.created_at).toLocaleDateString("en-CA",{timeZone:"Asia/Manila"}))).length,
       consults: deals.filter(d=>inMonth(reachedOn(d,"Site Inspection"))).length,
       closedDeals: won.length, won };
   }
   async function crmSync(quiet){
     const c = crmClient(); if (!c || !crmUser || !isAdmin()) return;
-    const { data, error } = await c.from("crm_deals").select("id,client,farm,location,source,stage,status,value,quoted_value,won_date,stage_history,created_at");
+    const { data, error } = await c.from("crm_deals").select("id,client,farm,location,source,stage,status,value,quoted_value,won_date,stage_history,created_at,gates,farm_type,house_model,num_bldgs");
     if (error) { state.crmError = "Couldn't read the CRM: "+error.message; render(); return; }
     state.crmError = null;
     state.crmDeals = data.filter(d => MKT_SOURCES.some(s => String(d.source||"").toLowerCase().startsWith(s)));
