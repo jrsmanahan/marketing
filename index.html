@@ -170,6 +170,13 @@ textarea{min-height:70px;resize:vertical}
   .mcell{min-height:0} .mcell.out,.mcell.nopost{display:none}
   .mday .wd{display:inline} .madd{opacity:1}
 }
+.print-only{display:none}
+@media print{
+  body{background:#fff;color:#000} .no-print,header.top,#notice,#login,.toast,dialog{display:none!important}
+  .wrap > section:not(#v-incentives){display:none!important} #v-incentives{display:block!important}
+  #statement{border:none;padding:0} .print-only{display:block} span.print-only{display:inline}
+  .tablewrap{overflow:visible;border:1px solid #999} th{background:#eee;color:#000}
+}
 pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;background:var(--sunk);padding:12px;border-radius:8px;margin:0;max-height:320px;overflow:auto}
 
 /* login */
@@ -207,6 +214,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       <button class="tab" role="tab" data-view="calendar" id="t-calendar">Content calendar</button>
       <button class="tab" role="tab" data-view="reports" id="t-reports">KPI reports</button>
       <button class="tab" role="tab" data-view="ideas" id="t-ideas">Content bank &amp; ideas</button>
+      <button class="tab" role="tab" data-view="incentives" id="t-incentives" hidden>Incentives</button>
       <button id="exportBtn" class="small" style="margin-left:6px" title="Download everything as an Excel backup">Export to Excel</button>
     </div>
     <div class="who"><span id="whoName"></span><button type="button" class="small" id="signOut">Sign out</button></div>
@@ -299,6 +307,9 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     <div class="panel"><h3>Report text <span>paste into email or Messenger</span></h3><pre class="report" id="reportText"></pre></div>
   </section>
 
+  <!-- INCENTIVES (admin only) -->
+  <section id="v-incentives" hidden style="display:grid;gap:14px"></section>
+
   <!-- IDEAS -->
   <section id="v-ideas" hidden style="display:grid;gap:16px">
     <div class="bar"><h2 class="sec">Content bank, for shoot</h2><span class="hint">Pick an idea and plan the shoot. It goes on the week board.</span></div>
@@ -377,6 +388,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     reelsPerMonth: 8, photosPerMonth: 8, ytPerMonth: 2, postsPerMonth: 16, onSchedule: 0.90,
     baseline: { followers: 5300, viewsPerMonth: 39000, engagementPerMonth: 1700 },
     followersGain90: 900, viewsPerMonth: 100000, engagementPerMonth: 4000, ytSubsGain90: 150,
+    payout: { signed: "2026-10-22", firstMonths: 6, thenMonths: 3 },
     qualifiedPerMonth: 10, answered24: 0.95, firstEditOk: 0.70, dealBonus: 5000,
   };
   const MATRIX = [
@@ -437,7 +449,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   let state = { view:"week", week: weekStart(new Date()), month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     who:"All", hideDone:false, items:[], bank:[], ideas:[], kpis:{}, loaded:false, period:null };
   try { const s = JSON.parse(localStorage.getItem("planner-view")||"{}"); if(s.who) state.who=s.who; if(s.hideDone) state.hideDone=true; if(s.view) state.view=s.view; } catch(e){}
-  if (location.hash && ["week","calendar","reports","ideas"].includes(location.hash.slice(1))) state.view = location.hash.slice(1);
+  if (location.hash && ["week","calendar","reports","ideas","incentives"].includes(location.hash.slice(1))) state.view = location.hash.slice(1);
   const saveView = () => { try{ localStorage.setItem("planner-view", JSON.stringify({who:state.who,hideDone:state.hideDone,view:state.view})); }catch(e){} };
 
   let db = null, canWrite = true, me = null;
@@ -465,16 +477,17 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     state.view=v; saveView();
     try { history.replaceState(null,"","#"+v); } catch(e){}
     for (const t of document.querySelectorAll(".tab")) t.setAttribute("aria-selected", String(t.dataset.view===v));
-    for (const s of ["week","calendar","reports","ideas"]) $("v-"+s).hidden = s!==v;
+    for (const s of ["week","calendar","reports","ideas","incentives"]) $("v-"+s).hidden = s!==v;
     render();
   }
   document.querySelectorAll(".tab").forEach(t => t.onclick = () => setView(t.dataset.view));
-  window.addEventListener("hashchange", () => { const v=location.hash.slice(1); if(["week","calendar","reports","ideas"].includes(v) && v!==state.view) setView(v); });
+  window.addEventListener("hashchange", () => { const v=location.hash.slice(1); if(["week","calendar","reports","ideas","incentives"].includes(v) && v!==state.view) setView(v); });
 
   function render(){
     if (state.view==="week") renderWeek();
     else if (state.view==="calendar") renderCalendar();
     else if (state.view==="reports") renderReports();
+    else if (state.view==="incentives") renderIncentives();
     else renderIdeas();
   }
 
@@ -662,13 +675,13 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       secs.push({sec:"Performance matrix", mpill:true, rows:[
         ...r.score.rows.map(x=>({l:x.label, v:fmtM(x,x.v), g:x.g, sub:`weight ${x.w} · acceptable ${fmtM(x,x.a)} · excellent ${fmtM(x,x.e)} · ${x.pts} pts`})),
         {l:"Monthly score", v:`${r.score.total} / 100`, g:r.score.total>=85?"ok":r.score.total>=50?"warn":"bad", strong:true,
-          sub:`Incentive earned: ${peso(r.score.incentive)} (85+ = ₱15,000 · 50–84 = ₱10,000 · below 50 = ₱0). Doc Jorge confirms at the monthly sync.${r.score.missing.length?` Missing data counts as 0: ${r.score.missing.join(", ")}.`:""}`},
+          sub:`${isAdmin()?`Incentive earned: ${peso(r.score.incentive)} (85+ = ₱15,000 · 50–84 = ₱10,000 · below 50 = ₱0). `:"85+ excellent · 50–84 acceptable. "}Doc Jorge confirms at the monthly sync.${r.score.missing.length?` Missing data counts as 0: ${r.score.missing.join(", ")}.`:""}`},
       ]});
     } else {
       const earned = r.monthly.filter(m=>!m.inFuture).reduce((a,m)=>a+m.score.incentive,0);
       secs.push({sec:"Performance matrix by month", mpill:true, rows:[
-        ...r.monthly.map(m=>({l:m.label, v:m.inFuture?"—":`${m.score.total} / 100`, g:m.inFuture?"na":m.score.total>=85?"ok":m.score.total>=50?"warn":"bad", sub:m.inFuture?"Not started yet":`${peso(m.score.incentive)} incentive${m.score.missing.length?` · missing: ${m.score.missing.join(", ")}`:""}`})),
-        {l:"Incentive pool for the period", v:peso(earned), g:"na", strong:true, sub:"Pooled; first payout 6 months after signing, then every 3 months"},
+        ...r.monthly.map(m=>({l:m.label, v:m.inFuture?"—":`${m.score.total} / 100`, g:m.inFuture?"na":m.score.total>=85?"ok":m.score.total>=50?"warn":"bad", sub:m.inFuture?"Not started yet":`${isAdmin()?peso(m.score.incentive)+" incentive":tierOf(m.score.total)}${m.score.missing.length?` · missing: ${m.score.missing.join(", ")}`:""}`})),
+        ...(isAdmin() ? [{l:"Incentive earned in this period", v:peso(earned), g:"na", strong:true, sub:"Pooled; see the Incentives tab for payout periods"}] : []),
       ]});
     }
     secs.push({sec:"Output vs agreement", rows:[
@@ -694,7 +707,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       {l:"Qualified project inquiries", v:fmtN(r.qualified), g:grade(r.qualified, CFG.qualifiedPerMonth*M, 0.5), sub:`target ${CFG.qualifiedPerMonth} a month · has a farm project, a location and a realistic timeline`},
       {l:"Answered within 24 hrs", v:pct(r.answered24), g:grade(r.answered24, CFG.answered24, 0.947), sub:r.inquiries!=null?`${fmtN(r.answered)} of ${fmtN(r.inquiries)} inquiries · target 95%`:"Enter inquiries received and answered"},
       {l:"Passed to sales within 1 working day", v:r.qualified?`${fmtN(r.toSales)} of ${fmtN(r.qualified)}`:"—", g:r.qualified?grade((r.toSales||0)/r.qualified,1,0.9):"na", sub:"qualified leads go to sales within 1 working day"},
-      {l:"Closed deals (deal bonus)", v:fmtN(r.closedDeals), g:"na", sub:r.closedDeals?`${peso(r.closedDeals*CFG.dealBonus)} in deal bonuses, paid with the next retainer`:`${peso(CFG.dealBonus)} per signed contract from a lead by Anne or Jacinto`},
+      {l:"Closed deals (deal bonus)", v:fmtN(r.closedDeals), g:"na", sub:"signed contracts from a lead by Anne or Jacinto"},
     ]});
     secs.push({sec:"Production & team", rows:[
       {l:"First edits approved with ≤1 revision", v:pct(r.firstEdit), g:grade(r.firstEdit, CFG.firstEditOk, 0.714), sub:`${r.editsCounted} edits went through approval · target 70% by month 3 (counted from status changes)`},
@@ -707,7 +720,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
 
   function reportText(r){
     const L = [`PRIME AGRITECH MARKETING REPORT (BRICATO)`, `${plabel(r.p)}  (${short(r.s)} – ${short(r.e)}, counted through ${short(r.upto)})`];
-    if (r.score) L.push(`Monthly score: ${r.score.total}/100 · incentive earned ${peso(r.score.incentive)}`);
+    if (r.score) L.push(`Monthly score: ${r.score.total}/100 (${tierOf(r.score.total)})${isAdmin()?` · incentive earned ${peso(r.score.incentive)}`:""}`);
     for (const sec of kpiRows(r)) {
       L.push("", sec.sec.toUpperCase());
       for (const row of sec.rows) L.push(`- ${row.l}: ${row.v}${row.g!=="na"?` [${(sec.mpill?MPILL:PILL)[row.g]}]`:""} (${row.sub})`);
@@ -928,6 +941,108 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     catch(e){ toast("Couldn't create the export. Try again in a moment."); }
   };
 
+  // ---------- incentives (admin only) ----------
+  const ADMINS = (window.PA_ADMINS || ["jrsmanahan@gmail.com"]).map(e=>String(e).toLowerCase());
+  const isAdmin = () => !!me && ADMINS.includes(me);
+  state.inc = {};
+  // Payout periods: first period = first 6 scored months, then every 3 months (Marketing Services Agreement).
+  function payoutPeriods(){
+    const out = [], start = parse(CFG.trialStart), now = new Date();
+    let s = start, n = 1, len = CFG.payout.firstMonths;
+    while (s <= addMonths(now, 3) && n <= 40) {
+      out.push({ n, start:s, months:len, end:addMonths(s,len) });
+      s = addMonths(s,len); len = CFG.payout.thenMonths; n++;
+    }
+    return out;
+  }
+  const monthsOf = p => Array.from({length:p.months},(_,i)=>ym(addMonths(p.start,i)));
+  const tierOf = t => t>=85 ? "Excellent" : t>=50 ? "Acceptable" : "Below 50";
+  function monthResult(k){
+    const live = compute({kind:"month", start:parse(k+"-01"), months:1}).score;
+    const lock = state.inc["month-"+k];
+    return { k, live, lock, total: lock ? lock.score : live.total, incentive: lock ? lock.incentive : live.incentive,
+      changed: !!lock && (lock.score!==live.total), future: k > ym(new Date()), current: k===ym(new Date()) };
+  }
+  function renderIncentives(){
+    if (!isAdmin()) { $("v-incentives").replaceChildren(el("p",{class:"hint"},"This page is only available to Jacinto.")); return; }
+    const ps = payoutPeriods();
+    if (!state.payoutSel || !ps.some(p=>p.n===state.payoutSel)) state.payoutSel = (ps.find(p=>p.end > new Date()) || ps[ps.length-1]).n;
+    const p = ps.find(x=>x.n===state.payoutSel);
+    const months = monthsOf(p).map(monthResult);
+    const pool = months.filter(m=>!m.future).reduce((a,m)=>a+m.incentive,0);
+    const maxPool = p.months*15000;
+    const pay = state.inc["payout-"+p.n] || {};
+    const deals = Object.entries(state.inc).filter(([id])=>id.startsWith("deal-")).map(([id,d])=>({id,...d})).sort((a,b)=>(a.contractDate||"").localeCompare(b.contractDate||""));
+    const dealsUnpaid = deals.filter(d=>d.status!=="paid");
+    const label = q => `Payout ${q.n}: ${monthName(q.start,{month:"short",year:"numeric"})} – ${monthName(addMonths(q.end,-1),{month:"short",year:"numeric"})}`;
+    const sel = el("select",{id:"payoutSel",style:"width:auto"}, ps.map(q=>el("option",{value:String(q.n), selected:q.n===p.n}, label(q))));
+    sel.onchange = () => { state.payoutSel = Number(sel.value); renderIncentives(); };
+    const statusSel = el("select",{id:"payStatus",style:"width:auto"}, [["accruing","Accruing"],["ready","Ready to claim"],["submitted","Submitted to finance"],["paid","Paid"]].map(([v,l])=>el("option",{value:v,selected:(pay.status||"accruing")===v},l)));
+    const savePay = async patch => { try { await db.collection("incentives").doc("payout-"+p.n).set({...pay, ...patch, ...stamp()}); toast("Saved"); } catch(e){ failed(e); } };
+    statusSel.onchange = () => savePay({status:statusSel.value, ...(statusSel.value==="submitted"&&!pay.submittedAt?{submittedAt:todayISO()}:{}), ...(statusSel.value==="paid"&&!pay.paidAt?{paidAt:todayISO()}:{})});
+    const allConfirmed = months.every(m=>m.lock?.confirmedAt);
+    const monthRows = months.map(m => {
+      const lockBtn = m.future || m.current ? el("span",{class:"hint"}, m.current?"In progress":"Not started") :
+        el("button",{type:"button",class:"small"+(m.lock?"":" primary"), onclick:async()=>{
+          try { await db.collection("incentives").doc("month-"+m.k).set({ ...(m.lock||{}), month:m.k, score:m.live.total, incentive:m.live.incentive,
+            breakdown: m.live.rows.map(r=>({k:r.k,label:r.label,v:r.v??null,pts:r.pts})), missing:m.live.missing, lockedAt:Date.now(), ...stamp() }); toast(`${m.k} score locked at ${m.live.total}`); } catch(e){ failed(e); } }}, m.lock ? "Re-lock" : "Lock score");
+      const conf = el("input",{type:"date", value:m.lock?.confirmedAt||"", disabled:!m.lock, "aria-label":"Date Doc Jorge confirmed "+m.k, style:"width:auto"});
+      conf.onchange = async () => { try { await db.collection("incentives").doc("month-"+m.k).update({confirmedAt:conf.value||null, ...stamp()}); toast(conf.value?"Confirmation saved":"Confirmation cleared"); } catch(e){ failed(e); } };
+      return el("tr",{},
+        el("td",{style:"white-space:nowrap;font-weight:600"}, monthName(parse(m.k+"-01"),{month:"long",year:"numeric"})),
+        el("td",{class:"num"}, m.future?"—":`${m.total}`),
+        el("td",{}, m.future?"":tierOf(m.total)),
+        el("td",{class:"num"}, m.future?"—":peso(m.incentive)),
+        el("td",{class:"no-print"}, lockBtn, m.changed ? el("div",{class:"hint",style:"color:var(--warn)"},`Live score is now ${m.live.total}`) : null, m.lock?.missing?.length ? el("div",{class:"hint"},"Missing: "+m.lock.missing.join(", ")) : null),
+        el("td",{}, el("span",{class:"no-print"}, conf), el("span",{class:"print-only"}, m.lock?.confirmedAt ? short(m.lock.confirmedAt)+", "+m.lock.confirmedAt.slice(0,4) : "Pending")));
+    });
+    const dealForm = el("form",{class:"bar no-print",style:"justify-content:flex-start"},
+      el("input",{id:"d-client",placeholder:"Client / project",style:"flex:2 1 200px"}),
+      el("input",{id:"d-date",type:"date","aria-label":"Contract signed",style:"flex:1 1 140px"}),
+      el("select",{id:"d-lead",style:"flex:1 1 120px"}, el("option",{},"Anne"), el("option",{},"Jacinto")),
+      el("button",{class:"primary",type:"submit"},"Add closed deal"));
+    dealForm.onsubmit = async ev => { ev.preventDefault(); const client=$("d-client").value.trim(), date=$("d-date").value;
+      if(!client||!date){ toast("Enter the client and the contract date"); return; }
+      try { await db.collection("incentives").doc("deal-"+Date.now().toString(36)).set({client, contractDate:date, leadBy:$("d-lead").value, amount:CFG.dealBonus, status:"pending", ...stamp()}); toast("Deal added"); } catch(e){ failed(e); } };
+    const dealRows = deals.length ? deals.map(d => {
+      const st = el("select",{"aria-label":"Deal bonus status",style:"width:auto"}, [["pending","Pending"],["claimed","Claimed with retainer"],["paid","Paid"]].map(([v,l])=>el("option",{value:v,selected:d.status===v},l)));
+      st.onchange = async () => { try { await db.collection("incentives").doc(d.id).update({status:st.value, ...(st.value==="paid"?{paidAt:todayISO()}:{}), ...stamp()}); toast("Saved"); } catch(e){ failed(e); } };
+      return el("tr",{}, el("td",{style:"font-weight:600"}, d.client), el("td",{style:"white-space:nowrap"}, d.contractDate?short(d.contractDate)+", "+d.contractDate.slice(0,4):""), el("td",{}, d.leadBy||""), el("td",{class:"num"}, peso(d.amount||CFG.dealBonus)),
+        el("td",{}, el("span",{class:"no-print"}, st), el("span",{class:"print-only"}, ({pending:"Pending",claimed:"Claimed with retainer",paid:"Paid"})[d.status]||d.status)));
+    }) : [el("tr",{}, el("td",{colspan:"5",class:"empty"},"No closed deals logged yet."))];
+    $("v-incentives").replaceChildren(
+      el("div",{class:"bar no-print"}, el("h2",{class:"sec"},"Incentives"), el("div",{class:"weeknav"}, sel, el("button",{type:"button",onclick:()=>window.print()},"Print / save PDF"), el("button",{type:"button",onclick:()=>exportStatement(p,months,pool,deals)},"Export statement"))),
+      el("p",{class:"hint no-print"},"Only you can see this tab. Lock each month's score after the monthly sync and record the date Doc Jorge confirmed it; locked scores don't change if data is edited later."),
+      el("div",{class:"stats no-print"},
+        el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Pool so far"), el("b",{},peso(pool)), el("small",{},`max ${peso(maxPool)} for ${p.months} months`)),
+        el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Months confirmed"), el("b",{},`${months.filter(m=>m.lock?.confirmedAt).length} / ${p.months}`), el("small",{},"by Doc Jorge at the monthly sync")),
+        el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Payout status"), statusSel, el("small",{}, pay.paidAt?`Paid ${short(pay.paidAt)}`:pay.submittedAt?`Submitted ${short(pay.submittedAt)}`:`Claim after ${monthName(addMonths(p.end,-1),{month:"long",year:"numeric"})} is confirmed`)),
+        el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Deal bonuses unpaid"), el("b",{},peso(dealsUnpaid.reduce((a,d)=>a+(d.amount||CFG.dealBonus),0))), el("small",{},`${dealsUnpaid.length} deal${dealsUnpaid.length===1?"":"s"} · paid with the next retainer`))),
+      el("div",{class:"panel",id:"statement"},
+        el("div",{class:"eyebrow"},"BRICATO Digital Marketing · for Prime Agritech Corporation"),
+        el("h2",{class:"sec",style:"font-size:20px;margin:4px 0 2px"},"Performance Incentive Statement"),
+        el("p",{class:"hint",style:"margin:0 0 12px"}, `${label(p)} · Marketing Services Agreement dated Oct 22, 2026 · prepared ${short(todayISO())}, ${todayISO().slice(0,4)}`),
+        el("div",{class:"tablewrap"}, el("table",{},
+          el("thead",{}, el("tr",{}, el("th",{},"Month"), el("th",{class:"num"},"Score /100"), el("th",{},"Tier"), el("th",{class:"num"},"Incentive"), el("th",{class:"no-print"},"Lock"), el("th",{},"Confirmed by Doc Jorge"))),
+          el("tbody",{}, monthRows),
+          el("tfoot",{}, el("tr",{}, el("td",{style:"font-weight:800"},"Pooled incentive"), el("td",{}), el("td",{}), el("td",{class:"num",style:"font-weight:800"}, peso(pool)), el("td",{class:"no-print"}), el("td",{}, allConfirmed?"All months confirmed":"Some months not yet confirmed"))))),
+        el("p",{class:"hint",style:"margin:10px 0 0"},"Score per the performance matrix: each KPI earns its full weight at the excellent threshold and half at the acceptable threshold. 85–100 = ₱15,000; 50–84 = ₱10,000; below 50 = ₱0. Monthly incentives are pooled and paid 6 months after contract signing, then every 3 months."),
+        el("h3",{style:"font-family:var(--f-display);font-size:14px;margin:18px 0 8px"},"Deal bonuses (₱5,000 per closed deal from a lead by Anne Nu or Jacinto Manahan)"),
+        el("div",{class:"tablewrap"}, el("table",{}, el("thead",{}, el("tr",{}, el("th",{},"Client / project"), el("th",{},"Contract signed"), el("th",{},"Lead by"), el("th",{class:"num"},"Bonus"), el("th",{},"Status"))), el("tbody",{}, dealRows))),
+        el("p",{class:"print-only",style:"margin-top:40px"},"Prepared by: Jacinto Manahan, BRICATO Digital Marketing          Confirmed by: Dr. Jorge Manahan, Prime Agritech")),
+      dealForm);
+  }
+  function exportStatement(p, months, pool, deals){
+    const wb = XLSX.utils.book_new();
+    const rows = months.map(m=>({ Month:m.k, "Score /100":m.future?"":m.total, Tier:m.future?"":tierOf(m.total), Incentive:m.future?"":m.incentive, "Locked on":m.lock?.lockedAt?new Date(m.lock.lockedAt).toISOString().slice(0,10):"", "Confirmed by Doc Jorge":m.lock?.confirmedAt||"Pending" }));
+    rows.push({ Month:"Pooled incentive", Incentive:pool });
+    const ws = XLSX.utils.json_to_sheet(rows); ws["!cols"]=[{wch:18},{wch:11},{wch:12},{wch:12},{wch:12},{wch:22}]; XLSX.utils.book_append_sheet(wb, ws, "Incentive");
+    const br = []; months.filter(m=>m.lock?.breakdown).forEach(m=>m.lock.breakdown.forEach(b=>br.push({Month:m.k, KPI:b.label, Value:b.v, Points:b.pts})));
+    if (br.length) { const w2 = XLSX.utils.json_to_sheet(br); w2["!cols"]=[{wch:10},{wch:36},{wch:12},{wch:8}]; XLSX.utils.book_append_sheet(wb, w2, "Score breakdown"); }
+    const w3 = XLSX.utils.json_to_sheet(deals.length?deals.map(d=>({"Client / project":d.client, "Contract signed":d.contractDate, "Lead by":d.leadBy, Bonus:d.amount||CFG.dealBonus, Status:d.status})):[{}]); w3["!cols"]=[{wch:30},{wch:14},{wch:10},{wch:10},{wch:12}]; XLSX.utils.book_append_sheet(wb, w3, "Deal bonuses");
+    try { XLSX.writeFile(wb, `BRICATO Incentive Statement - Payout ${p.n}.xlsx`); toast("Statement downloaded"); } catch(e){ toast("Couldn't create the statement. Try again."); }
+  }
+
   setView(state.view);
 
   // ---------- data (Firebase) ----------
@@ -949,7 +1064,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     let firstAll = 0, seen = new Set();
     const sub = (col, key, map) => db.collection(col).onSnapshot(snap => {
       state[key] = map(snap.docs);
-      if (!snap.metadata.fromCache) { seen.add(col); if (seen.size===5) { clearTimeout(timer); if ($("notice").textContent.startsWith("Still connecting")) $("notice").hidden = true;
+      if (!snap.metadata.fromCache) { seen.add(col); if (seen.size>=5 && ["activities","bank","ideas","kpis","reference"].every(c=>seen.has(c))) { clearTimeout(timer); if ($("notice").textContent.startsWith("Still connecting")) $("notice").hidden = true;
         if (!firstAll++ && !state.items.length && !state.bank.length && !state.reference?._meta)
           showNotice("This planner is empty. Load the posts, content bank, ideas and plan from the old planner?", el("button",{class:"small primary",type:"button",onclick:importSeed},"Load the data")); } }
       state.loaded = true; render();
@@ -961,6 +1076,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       sub("ideas","ideas", docs => docs.map(d=>({id:d.id, ...d.data()}))),
       sub("kpis","kpis", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
       sub("reference","reference", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
+      ...(isAdmin() ? [sub("incentives","inc", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()])))] : []),
     ];
   }
   const cfgOk = window.PA_FIREBASE_CONFIG && !String(window.PA_FIREBASE_CONFIG.apiKey||"").startsWith("PASTE");
@@ -976,6 +1092,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       me = (u.email||"").toLowerCase();
       $("login").hidden = true; $("app").hidden = false;
       nameOf(me).then(n => $("whoName").textContent = n);
+      $("t-incentives").hidden = !isAdmin(); if (!isAdmin() && state.view==="incentives") setView("week");
       start();
     });
     $("loginForm").addEventListener("submit", async ev => {
