@@ -15,3 +15,4 @@ window.PA_TEAM = [
   { name: "Yuan",      email: "jjsmanahan@gmail.com" }
 ];
 
+   window.PA_ADMINS = ["jrsmanahan@gmail.com"];
