@@ -274,7 +274,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     </table></div>
     <form class="bar" id="bankAdd" style="justify-content:flex-start">
       <input id="b-idea" placeholder="New content idea" style="flex:2 1 240px">
-      <select id="b-seg" style="flex:1 1 140px"><option>Breeder Upgrade</option><option>Broiler Farm</option></select>
+      <select id="b-seg" style="flex:1 1 140px"></select>
       <select id="b-pillar" style="flex:1 1 140px"><option>Build Stories</option><option>Proof &amp; Numbers</option><option>Expert Know-How</option><option>People of Prime</option></select>
       <button class="primary" type="submit">Add to bank</button>
     </form>
@@ -298,7 +298,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     <label>Time (optional)<input type="time" id="f-time"></label>
     <label>Status<select id="f-status"></select></label>
     <label>Segment
-      <select id="f-seg"><option value="">None</option><option>Breeder Upgrade</option><option>Broiler Farm</option><option>All Audiences</option></select>
+      <select id="f-seg"></select>
     </label>
     <label class="full post-only">CTA<input id="f-cta" maxlength="120"></label>
     <label class="full post-only">Caption<textarea id="f-caption" maxlength="6000" style="min-height:110px"></textarea></label>
@@ -326,25 +326,8 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
 
 <div class="toast" id="toast" hidden></div>
 
-<!-- ===== EDIT THIS BLOCK: paste your Firebase web app config and the team list ===== -->
-<script>
-window.PA_FIREBASE_CONFIG = {
- apiKey: "AIzaSyBkkONo99vBMR6CuU20ERi6_P6sllnAWHU",
-  authDomain: "marketing-b48f5.firebaseapp.com",
-  projectId: "marketing-b48f5",
-  storageBucket: "marketing-b48f5.firebasestorage.app",
-  messagingSenderId: "73817352435",
-  appId: "1:73817352435:web:76a072097dd80e8b11ef86"
-};
-// Who can sign in, and the name shown in edit history. Use the same emails in firestore.rules.
-window.PA_TEAM = [
-  { name: "Jacinto",   email: "jrsmanahan@gmail.com" },
-  { name: "Anne",      email: "anne.nu24@gmail.com" },
-  { name: "Christian", email: "christianvelasco858@gmail.com" },
-  { name: "Yuan",      email: "jjsmanahan@gmail.com" }
-];
-</script>
-<!-- ===== end of block ===== -->
+<!-- Firebase settings and team list live in config.js -->
+<script src="config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -382,7 +365,14 @@ window.PA_TEAM = [
   const TYPES = [...POST_TYPES,"Shoot","Edit","Write-up / SEO","Website / LinkedIn","On-ground activity","Inquiry follow-up","Meeting","Admin"];
   const STATUSES = ["todo","doing","review","approved","scheduled","done"];
   const label = (s, isPost) => ({todo:"Not started",doing:isPost?"Editing":"In progress",review:"For approval",approved:"Approved",scheduled:"Scheduled",done:isPost?"Posted":"Done"})[s] || s;
-  const CTA = {"Breeder Upgrade":"Book a free farm upgrade consult","Broiler Farm":"Book a free initial farm consult","All Audiences":"Holiday greeting (no sales CTA)"};
+  // Target segments. Breeder vs all Broiler types is the 70/30 split.
+  const SEGMENTS = ["Breeder","Broiler - Small scale","Broiler - CCS3","Broiler - CCS4","Broiler - MTC"];
+  const HOLIDAY_SEG = "All Audiences", LEGACY_BROILER = "Broiler (type not set)";
+  const normSeg = s => s==="Breeder Upgrade" ? "Breeder" : s==="Broiler Farm" ? LEGACY_BROILER : (s||"");
+  const isBreeder = s => s==="Breeder";
+  const isBroiler = s => String(s||"").startsWith("Broiler");
+  const ctaFor = s => isBreeder(s) ? "Book a free farm upgrade consult" : isBroiler(s) ? "Book a free initial farm consult" : s===HOLIDAY_SEG ? "Holiday greeting (no sales CTA)" : "";
+  const CTA_TEXTS = ["Book a free farm upgrade consult","Book a free initial farm consult","Holiday greeting (no sales CTA)"];
   const HOLIDAYS = {"2026-11-01":"All Saints' Day","2026-11-02":"All Souls' Day","2026-11-30":"Bonifacio Day","2026-12-08":"Immaculate Conception","2026-12-24":"Christmas Eve","2026-12-25":"Christmas Day","2026-12-30":"Rizal Day","2026-12-31":"Last day of the year","2027-01-01":"New Year's Day"};
   const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   const BANK_ST = ["In bank","Planned","Shot","Used"];
@@ -503,11 +493,12 @@ window.PA_TEAM = [
     const m = state.month, key = ym(m);
     $("cRange").textContent = monthName(m);
     const posts = state.items.filter(i=>isPost(i) && i.date.startsWith(key)).sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0));
-    const reg = posts.filter(p=>p.segment!=="All Audiences"), br = reg.filter(p=>p.segment==="Breeder Upgrade");
+    const reg = posts.filter(p=>p.segment!==HOLIDAY_SEG), br = reg.filter(p=>isBreeder(p.segment));
+    const subs = [...SEGMENTS.filter(isBroiler), LEGACY_BROILER].map(s=>[s, reg.filter(p=>p.segment===s).length]).filter(([s,n])=>n||s!==LEGACY_BROILER);
     $("calSum").replaceChildren(
       el("span",{},"Posts ", el("b",{},posts.length)), el("span",{},"Reels ", el("b",{},posts.filter(p=>p.type==="Reel post").length)),
-      el("span",{},"Photos ", el("b",{},posts.filter(p=>p.type==="Photo post").length)), el("span",{},"Breeder Upgrade ", el("b",{},br.length)),
-      el("span",{},"Broiler Farm ", el("b",{},reg.length-br.length)), el("span",{},"Holiday ", el("b",{},posts.length-reg.length)),
+      el("span",{},"Photos ", el("b",{},posts.filter(p=>p.type==="Photo post").length)), el("span",{},"Breeder ", el("b",{},br.length)),
+      el("span",{},"All broiler ", el("b",{},reg.filter(p=>isBroiler(p.segment)).length)), ...subs.map(([s,n])=>el("span",{},s.replace("Broiler - ","↳ ")+" ", el("b",{},n))), el("span",{},"Holiday ", el("b",{},posts.length-reg.length)),
       el("span",{},"Breeder share of regular posts ", el("b",{}, reg.length?pct(br.length/reg.length):"—")),
       el("span",{},"Posted ", el("b",{}, posts.filter(published).length)));
     const body = $("calBody"); body.replaceChildren();
@@ -569,7 +560,8 @@ window.PA_TEAM = [
     const posts = inP.filter(isPost), due = posts.filter(x=>x.date<=upto), pub = posts.filter(published);
     const regPub = pub.filter(x=>x.segment!=="All Audiences");
     const cnt = t => pub.filter(x=>x.type===t && x.segment!=="All Audiences").length;
-    const reg = regPub.filter(x=>x.segment), br = reg.filter(x=>x.segment==="Breeder Upgrade").length;
+    const reg = regPub.filter(x=>isBreeder(x.segment)||isBroiler(x.segment)), br = reg.filter(x=>isBreeder(x.segment)).length;
+    const broilerMix = [...SEGMENTS.filter(isBroiler), LEGACY_BROILER].map(s=>[s, regPub.filter(x=>x.segment===s).length]).filter(([,n])=>n);
     const withViews = pub.filter(x=>x.views!=null && x.views!=="" && !isNaN(x.views));
     const avgViews = withViews.length ? withViews.reduce((a,x)=>a+Number(x.views),0)/withViews.length : null;
     const top = withViews.slice().sort((a,b)=>b.views-a.views)[0];
@@ -584,7 +576,7 @@ window.PA_TEAM = [
     const people = PEOPLE.map(pp => { const mine = inP.filter(x=>x.owner===pp.id && x.date<=upto); const done = mine.filter(published).length; return {id:pp.id, due:mine.length, done, open:mine.length-done}; });
     const r = { p, s, e, upto, months, planned:posts.length, due:due.length, pub:pub.length, regPub:regPub.length,
       reels:cnt("Reel post"), photos:cnt("Photo post"), yt:cnt("YouTube video"), holiday:pub.length-regPub.length,
-      breederShare: reg.length? br/reg.length : null, regular:reg.length,
+      breederShare: reg.length? br/reg.length : null, regular:reg.length, broilerMix,
       onSchedule: due.length ? due.filter(published).length/due.length : null,
       viewsEntered: withViews.length, avgViews, top, firstEdit, editsCounted: edits.length,
       followers:fEnd, followersGained: fEnd!=null&&fStart!=null ? fEnd-fStart : null,
@@ -627,7 +619,7 @@ window.PA_TEAM = [
       {l:"Long-form YouTube videos", v:`${r.yt} / ${CFG.ytPerMonth*M}`, g:grade(r.yt, CFG.ytPerMonth*M, 0.5), sub:`${CFG.ytPerMonth} a month`},
       {l:"Holiday posts", v:String(r.holiday), g:"na", sub:"Free, on top of the weekly output"},
       {l:"Published on schedule", v:pct(r.onSchedule), g:grade(r.onSchedule, CFG.onSchedule, 0.89), sub:"of posts due so far · Day 90 target 90%"},
-      {l:"Breeder Upgrade share", v:pct(r.breederShare), g:r.breederShare==null?"na":(Math.abs(r.breederShare-CFG.breederShare)<=0.08?"ok":Math.abs(r.breederShare-CFG.breederShare)<=0.15?"warn":"bad"), sub:`of ${r.regular} regular posts · plan 70/30`},
+      {l:"Breeder share", v:pct(r.breederShare), g:r.breederShare==null?"na":(Math.abs(r.breederShare-CFG.breederShare)<=0.08?"ok":Math.abs(r.breederShare-CFG.breederShare)<=0.15?"warn":"bad"), sub:`of ${r.regular} regular posts · plan 70 breeder / 30 broiler${r.broilerMix.length?" · broiler: "+r.broilerMix.map(([s,n])=>`${s.replace("Broiler - ","")} ${n}`).join(", "):""}`},
     ]});
     secs.push({sec:"Audience", rows:[
       {l:"Facebook followers", v:fmtN(r.followers), g:day90? grade(r.followersGained, CFG.followersGain90, 0.85) : grade(r.followersGained, 300, 0.5),
@@ -754,7 +746,13 @@ window.PA_TEAM = [
   function fillStatuses(post, cur){ $("f-status").replaceChildren(...STATUSES.map(s=>el("option",{value:s},label(s,post)))); $("f-status").value = cur||"todo"; }
   function togglePost(){ const t=$("f-type").value, post = POST_TYPES.includes(t); document.querySelectorAll(".post-only").forEach(x=>x.hidden=!post); document.querySelectorAll(".nonpost").forEach(x=>x.hidden=post); if (t==="Edit") { $("f-rev").closest("label").hidden=false; } fillStatuses(post, $("f-status").value); }
   $("f-type").onchange = togglePost;
-  $("f-seg").onchange = () => { if (POST_TYPES.includes($("f-type").value) && (!$("f-cta").value || Object.values(CTA).includes($("f-cta").value))) $("f-cta").value = CTA[$("f-seg").value]||""; };
+  $("b-seg").append(...SEGMENTS.map(s=>el("option",{value:s},s)));
+  function fillSegs(cur){
+    const opts = [["","None"], ...SEGMENTS.map(s=>[s,s]), [HOLIDAY_SEG, HOLIDAY_SEG+" (holidays)"]];
+    if (cur && !opts.some(([v])=>v===cur)) opts.push([cur, cur]);
+    $("f-seg").replaceChildren(...opts.map(([v,l])=>el("option",{value:v},l))); $("f-seg").value = cur||"";
+  }
+  $("f-seg").onchange = () => { if (POST_TYPES.includes($("f-type").value) && (!$("f-cta").value || CTA_TEXTS.includes($("f-cta").value))) $("f-cta").value = ctaFor($("f-seg").value); };
 
   function openForm(it, pre){
     editing = it || null; prefill = pre || null; const v = it || pre || {};
@@ -765,8 +763,8 @@ window.PA_TEAM = [
     $("f-owner").value = v.owner || (state.who!=="All"?state.who:(POST_TYPES.includes(v.type)?"Anne":"Christian"));
     $("f-date").value = v.date || (inWeek ? todayISO() : iso(state.week));
     $("f-time").value = v.time || "";
-    $("f-seg").value = v.segment || "";
-    $("f-cta").value = v.cta ?? (CTA[v.segment]||"");
+    fillSegs(v.segment || "");
+    $("f-cta").value = v.cta ?? ctaFor(v.segment);
     $("f-caption").value = v.caption || ""; $("f-link").value = v.link || "";
     $("f-views").value = v.views ?? ""; $("f-eng").value = v.engagement ?? "";
     $("f-where").value = v.where || ""; $("f-notes").value = v.notes || "";
@@ -825,7 +823,7 @@ window.PA_TEAM = [
   $("cPrev").onclick = () => { state.month = addMonths(state.month,-1); render(); };
   $("cNext").onclick = () => { state.month = addMonths(state.month,1); render(); };
   $("addBtn").onclick = () => openForm(null);
-  $("addPost").onclick = () => { const d = state.month; const ds = ym(d)===ym(new Date()) ? todayISO() : iso(d); openForm(null,{type:"Reel post",owner:"Anne",segment:"Breeder Upgrade",date:ds}); };
+  $("addPost").onclick = () => { const d = state.month; const ds = ym(d)===ym(new Date()) ? todayISO() : iso(d); openForm(null,{type:"Reel post",owner:"Anne",segment:"Breeder",date:ds}); };
   $("hideDone").onchange = e => { state.hideDone = e.target.checked; saveView(); render(); };
 
   // ---------- campaign plan reference ----------
@@ -896,8 +894,8 @@ window.PA_TEAM = [
     }, e => { clearTimeout(timer); state.loaded = true;
       showNotice(e.code==="permission-denied" ? "Your account isn't on the planner's team list yet. Ask Jacinto to add your email." : "The planner stopped updating. Reload the page to reconnect."); render(); });
     unsubs = [
-      sub("activities","items", docs => docs.map(d=>({id:d.id, ...d.data()}))),
-      sub("bank","bank", docs => docs.map(d=>({id:d.id, ...d.data()}))),
+      sub("activities","items", docs => docs.map(d=>{ const x={id:d.id, ...d.data()}; x.segment=normSeg(x.segment); return x; })),
+      sub("bank","bank", docs => docs.map(d=>{ const x={id:d.id, ...d.data()}; x.segment=normSeg(x.segment); return x; })),
       sub("ideas","ideas", docs => docs.map(d=>({id:d.id, ...d.data()}))),
       sub("kpis","kpis", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
       sub("reference","reference", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
@@ -906,7 +904,7 @@ window.PA_TEAM = [
   const cfgOk = window.PA_FIREBASE_CONFIG && !String(window.PA_FIREBASE_CONFIG.apiKey||"").startsWith("PASTE");
   if (!window.firebase || !cfgOk) {
     $("app").hidden = false; canWrite = false; state.loaded = true;
-    showNotice(!window.firebase ? "Firebase didn't load. Check the internet connection and reload." : "Setup needed: paste the Firebase config into the block at the top of index.html."); render();
+    showNotice(!window.firebase ? "Firebase didn't load. Check the internet connection and reload." : "Setup needed: add config.js with the Firebase settings to the GitHub repo."); render();
   } else {
     firebase.initializeApp(window.PA_FIREBASE_CONFIG);
     const auth = firebase.auth(); db = firebase.firestore();
