@@ -214,7 +214,6 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       <button class="tab" role="tab" data-view="calendar" id="t-calendar">Content calendar</button>
       <button class="tab" role="tab" data-view="reports" id="t-reports">KPI reports</button>
       <button class="tab" role="tab" data-view="ideas" id="t-ideas">Content bank &amp; ideas</button>
-      <button class="tab" role="tab" data-view="inquiries" id="t-inquiries" hidden>Inquiries</button>
       <button class="tab" role="tab" data-view="incentives" id="t-incentives" hidden>Incentives</button>
       <button id="exportBtn" class="small" style="margin-left:6px" title="Download everything as an Excel backup">Export to Excel</button>
     </div>
@@ -295,6 +294,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
         <button id="copyReport">Copy report text</button>
       </div>
     </div>
+    <div id="crmPanelHost"></div>
     <div class="panel" id="snapPanel">
       <h3>Month-end numbers for <span id="snapMonth"></span></h3>
       <p class="hint" style="margin-bottom:10px">Facebook numbers from Meta Business Suite, subscribers from YouTube Studio, inquiries from the inbox, Gmail and lead tracker. Enter them at month end. Posting, schedule and edit approvals are counted from the planner.</p>
@@ -308,9 +308,6 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     <div class="kgrid" id="kpiGrid"></div>
     <div class="panel"><h3>Report text <span>paste into email or Messenger</span></h3><pre class="report" id="reportText"></pre></div>
   </section>
-
-  <!-- INQUIRIES (Jacinto + Anne) -->
-  <section id="v-inquiries" hidden style="display:grid;gap:14px"></section>
 
   <!-- INCENTIVES (admin only) -->
   <section id="v-incentives" hidden style="display:grid;gap:14px"></section>
@@ -457,7 +454,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   let state = { view:"week", week: weekStart(new Date()), month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     who:"All", hideDone:false, items:[], bank:[], ideas:[], kpis:{}, loaded:false, period:null };
   try { const s = JSON.parse(localStorage.getItem("planner-view")||"{}"); if(s.who) state.who=s.who; if(s.hideDone) state.hideDone=true; if(s.view) state.view=s.view; } catch(e){}
-  if (location.hash && ["week","calendar","reports","ideas","inquiries","incentives"].includes(location.hash.slice(1))) state.view = location.hash.slice(1);
+  if (location.hash && ["week","calendar","reports","ideas","incentives"].includes(location.hash.slice(1))) state.view = location.hash.slice(1);
   const saveView = () => { try{ localStorage.setItem("planner-view", JSON.stringify({who:state.who,hideDone:state.hideDone,view:state.view})); }catch(e){} };
 
   let db = null, canWrite = true, me = null;
@@ -485,18 +482,17 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     state.view=v; saveView();
     try { history.replaceState(null,"","#"+v); } catch(e){}
     for (const t of document.querySelectorAll(".tab")) t.setAttribute("aria-selected", String(t.dataset.view===v));
-    for (const s of ["week","calendar","reports","ideas","inquiries","incentives"]) $("v-"+s).hidden = s!==v;
+    for (const s of ["week","calendar","reports","ideas","incentives"]) $("v-"+s).hidden = s!==v;
     render();
   }
   document.querySelectorAll(".tab").forEach(t => t.onclick = () => setView(t.dataset.view));
-  window.addEventListener("hashchange", () => { const v=location.hash.slice(1); if(["week","calendar","reports","ideas","inquiries","incentives"].includes(v) && v!==state.view) setView(v); });
+  window.addEventListener("hashchange", () => { const v=location.hash.slice(1); if(["week","calendar","reports","ideas","incentives"].includes(v) && v!==state.view) setView(v); });
 
   function render(){
     if (state.view==="week") renderWeek();
     else if (state.view==="calendar") renderCalendar();
     else if (state.view==="reports") renderReports();
     else if (state.view==="incentives") renderIncentives();
-    else if (state.view==="inquiries") renderInquiries();
     else renderIdeas();
   }
 
@@ -607,7 +603,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     ["views","Facebook views this month"],["engagement","Facebook engagement this month"],
     ["inquiries","Inquiries received (inbox + Gmail)"],["answered24","Answered within 24 hrs"],
     ["qualified","Qualified project inquiries"],["toSales","Passed to sales within 1 working day"],
-    ["closedDeals","Closed deals from BRICATO leads"]];
+    ["closedDeals","Closed deals (Inbound)"]];
   const BASE_KEY = ym(addMonths(parse(CFG.trialStart),-1));
   function periods(){
     const out = [{kind:"baseline", start:addMonths(parse(CFG.trialStart),-1), months:1}], start = parse(CFG.trialStart), now = new Date();
@@ -618,8 +614,8 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   const pid = p => p.kind==="month" ? "m-"+ym(p.start) : p.kind==="quarter" ? "q-"+p.q : "base";
   const plabel = p => p.kind==="baseline" ? `Baseline before BRICATO (${monthName(p.start,{month:"short",year:"numeric"})})` : p.kind==="month" ? monthName(p.start) :
     `${p.q===0?"Day 90 (trial)":"Quarter "+(p.q+1)}: ${monthName(p.start,{month:"short",year:"numeric"})} – ${monthName(addMonths(p.start,2),{month:"short",year:"numeric"})}`;
-  const AUTO_FIELDS = ["inquiries","answered24","qualified","toSales","closedDeals"];
-  const snapVal = (k,f) => { const a = state.kpis[k]?.auto; if (a && AUTO_FIELDS.includes(f) && a[f]!=null) return Number(a[f]); const v = state.kpis[k]?.[f]; if (v!=null && v!=="") return Number(v); if (k===BASE_KEY && f==="followers") return CFG.baseline.followers; return null; };
+  const AUTO_FIELDS = ["qualified","closedDeals"];
+  const snapVal = (k,f) => { const a = state.kpis[k]?.crm; if (a && AUTO_FIELDS.includes(f) && a[f]!=null) return Number(a[f]); const v = state.kpis[k]?.[f]; if (v!=null && v!=="") return Number(v); if (k===BASE_KEY && f==="followers") return CFG.baseline.followers; return null; };
   const peso = n => "₱"+Number(n).toLocaleString("en-US");
 
   // weighted score from the agreement's performance matrix
@@ -714,11 +710,12 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       {l:"Best post", v:r.top?fmtN(r.top.views):"—", g:"na", sub:r.top?`${r.top.title||r.top.type} (${short(r.top.date)})`:"Add views to posts to see the best one"},
     ]});
     secs.push({sec:"Inquiries & deal bonus", rows:[
-      {l:"Qualified project inquiries", v:fmtN(r.qualified), g:grade(r.qualified, CFG.qualifiedPerMonth*M, 0.5), sub:`target ${CFG.qualifiedPerMonth} a month · has a farm project, a location and a realistic timeline`},
+      {l:"Qualified project inquiries", v:fmtN(r.qualified), g:grade(r.qualified, CFG.qualifiedPerMonth*M, 0.5), sub:`target ${CFG.qualifiedPerMonth} a month · Inbound deals that reached Qualified in the CRM`},
       {l:"Answered within 24 hrs", v:pct(r.answered24), g:grade(r.answered24, CFG.answered24, 0.947), sub:r.inquiries!=null?`${fmtN(r.answered)} of ${fmtN(r.inquiries)} inquiries · target 95%`:"Enter inquiries received and answered"},
       {l:"Passed to sales within 1 working day", v:r.qualified?`${fmtN(r.toSales)} of ${fmtN(r.qualified)}`:"—", g:r.qualified?grade((r.toSales||0)/r.qualified,1,0.9):"na", sub:"qualified leads go to sales within 1 working day"},
-      {l:"Consults / site visits", v:fmtN(r.months.reduce((a,k)=>a+(state.kpis[k]?.auto?.consults||0),0)), g:"na", sub:"marketing leads at CRM stage Site Inspection or later"},
-      {l:"Closed deals (deal bonus)", v:fmtN(r.closedDeals), g:"na", sub:"signed contracts from a lead by Anne or Jacinto"},
+      {l:"Marketing leads in the CRM", v:fmtN(r.months.some(k=>state.kpis[k]?.crm)?r.months.reduce((a,k)=>a+(state.kpis[k]?.crm?.crmLeads||0),0):null), g:"na", sub:"new deals with source Inbound"},
+      {l:"Consults / site visits", v:fmtN(r.months.some(k=>state.kpis[k]?.crm)?r.months.reduce((a,k)=>a+(state.kpis[k]?.crm?.consults||0),0):null), g:"na", sub:"Inbound deals that reached Site Inspection or later"},
+      {l:"Closed deals (deal bonus)", v:fmtN(r.closedDeals), g:"na", sub:"Inbound deals marked Closed Sale in the CRM"},
     ]});
     secs.push({sec:"Production & team", rows:[
       {l:"First edits approved with ≤1 revision", v:pct(r.firstEdit), g:grade(r.firstEdit, CFG.firstEditOk, 0.714), sub:`${r.editsCounted} edits went through approval · target 70% by month 3 (counted from status changes)`},
@@ -764,7 +761,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
         $("snapFields").replaceChildren(...flds.map(([f,l])=>el("label",{}, l, el("input",{type:"number",min:"0",id:"s-"+f,inputmode:"numeric"}))));
         for (const [f] of flds) $("s-"+f).value = s[f] ?? (p.kind==="baseline" && f==="followers" ? CFG.baseline.followers : "");
         $("s-notes").value = s.notes ?? ""; $("s-evidence").value = s.evidence ?? "";
-        for (const f of AUTO_FIELDS) { const inp = $("s-"+f); if (inp && s.auto && s.auto[f]!=null) { inp.value = s.auto[f]; inp.readOnly = true; inp.title = "Counted from the inquiry log"; inp.closest("label").append(el("span",{class:"hint",style:"font-weight:400"},"from the inquiry log")); } }
+        for (const f of AUTO_FIELDS) { const inp = $("s-"+f); if (inp && s.crm && s.crm[f]!=null) { inp.value = s.crm[f]; inp.readOnly = true; inp.title = "From the Prime Sales CRM (Inbound deals)"; inp.closest("label").append(el("span",{class:"hint",style:"font-weight:400"},"from the CRM")); } }
         $("snapSaved").textContent = s.updatedAt ? `Last saved ${new Date(s.updatedAt).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}` : "Not entered yet";
       }
       [...$("snapForm").elements].forEach(x=>x.disabled=!canWrite);
@@ -773,6 +770,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       $("kpiGrid").replaceChildren(el("div",{class:"panel"}, el("h3",{},"Baseline"), el("p",{class:"hint"},"Prime's page before BRICATO: 5.3K followers, posting once a month, about 39K views and 1.7K engagement a month. The agreement still needs the YouTube subscriber count and current monthly inquiries; enter them above so November's gains can be counted.")));
       $("reportText").textContent = "Baseline month: no report."; return;
     }
+    const cp = $("crmPanelHost"); if (cp) cp.replaceChildren(...[crmPanel()].filter(Boolean));
     $("kpiGrid").replaceChildren(...kpiRows(r).map(sec => el("div",{class:"panel"}, el("h3",{}, sec.sec),
       sec.rows.map(row => el("div",{class:"krow"}, el("span",{class:"lbl",style:row.strong?"font-family:var(--f-display);font-weight:800":null}, row.l), el("span",{class:"val"}, row.v, el("span",{class:"pill p-"+row.g}, (sec.mpill?MPILL:PILL)[row.g])), el("span",{class:"sub"}, row.sub))))));
     $("reportText").textContent = reportText(r);
@@ -1028,6 +1026,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     }) : [el("tr",{}, el("td",{colspan:"5",class:"empty"},"No closed deals logged yet."))];
     $("v-incentives").replaceChildren(
       el("div",{class:"bar no-print"}, el("h2",{class:"sec"},"Incentives"), el("div",{class:"weeknav"}, sel, el("button",{type:"button",onclick:()=>window.print()},"Print / save PDF"), el("button",{type:"button",onclick:()=>exportStatement(p,months,pool,deals)},"Export statement"))),
+      crmPanel(),
       el("p",{class:"hint no-print"},"Only you can see this tab. Lock each month's score after the monthly sync and record the date Doc Jorge confirmed it; locked scores don't change if data is edited later."),
       el("div",{class:"stats no-print"},
         el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Pool so far"), el("b",{},peso(pool)), el("small",{},`max ${peso(maxPool)} for ${p.months} months`)),
@@ -1059,171 +1058,81 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     try { XLSX.writeFile(wb, `BRICATO Incentive Statement - Payout ${p.n}.xlsx`); toast("Statement downloaded"); } catch(e){ toast("Couldn't create the statement. Try again."); }
   }
 
-  // ---------- inquiry log + Prime Sales CRM link (Jacinto and Anne) ----------
-  const LEAD_TEAM = (window.PA_LEAD_TEAM || ["jrsmanahan@gmail.com"]).map(e=>String(e).toLowerCase());
-  const isLeadTeam = () => !!me && (LEAD_TEAM.includes(me) || isAdmin());
-  state.inq = [];
-  const CHANNELS = ["Facebook Messenger","Facebook comment","YouTube","TikTok","Gmail","Website","Phone / Viber","Event / expo","Referral"];
+  // ---------- Prime Sales CRM → marketing KPIs (read-only, Jacinto's own CRM login) ----------
+  // Deals whose source is "Inbound" (or "Marketing", for when the CRM label is renamed) count as marketing leads.
+  const MKT_SOURCES = (window.PA_CRM?.marketingSources || ["Inbound","Marketing"]).map(s=>s.toLowerCase());
   const CRM_STAGES = ["Lead","Qualified","Evaluation","Site Inspection","Proposal","Bidding / Negotiation","Committed","Closed Sale"];
   const stageRank = s => CRM_STAGES.indexOf(s);
-  const toDT = s => s ? new Date(s) : null;
-  const fmtDT = s => s ? new Date(s).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}) : "";
-  const localDT = d => { const x = new Date(d); return `${iso(x)}T${pad(x.getHours())}:${pad(x.getMinutes())}`; };
-  const within24 = q => q.receivedAt && q.answeredAt && (toDT(q.answeredAt) - toDT(q.receivedAt)) <= 24*3600e3;
-  // "within 1 working day": by the end of the next working day (Mon–Sat) after it was qualified
-  function salesDeadline(q){ const start = toDT(q.qualifiedAt || q.receivedAt); if (!start) return null; let d = addDays(new Date(start.getFullYear(),start.getMonth(),start.getDate()),1); if (d.getDay()===0) d = addDays(d,1); d.setHours(23,59,59); return d; }
-  const toSalesOnTime = q => q.qualified && q.sentToSalesAt && toDT(q.sentToSalesAt) <= salesDeadline(q);
-  // Month totals from the log (by month received). Shared with the team as totals only.
-  function inqTotals(k){
-    const rows = state.inq.filter(q => (q.receivedAt||"").slice(0,7)===k);
-    const crm = rows.filter(q=>q.crm);
-    const closedInMonth = state.inq.filter(q => q.crm && q.crm.stage==="Closed Sale" && (q.crm.wonDate||"").slice(0,7)===k);
-    return { inquiries: rows.length, answered24: rows.filter(within24).length, qualified: rows.filter(q=>q.qualified).length,
-      toSales: rows.filter(toSalesOnTime).length, closedDeals: closedInMonth.length,
-      consults: rows.filter(q=>q.crm && stageRank(q.crm.stage)>=stageRank("Site Inspection")).length,
-      pipelineValue: crm.filter(q=>q.crm.status!=="lost" && q.crm.stage!=="Closed Sale").reduce((a,q)=>a+(Number(q.crm.quotedValue||q.crm.value)||0),0),
-      wonValue: closedInMonth.reduce((a,q)=>a+(Number(q.crm.quotedValue||q.crm.value)||0),0) };
-  }
-  // write totals into kpis/<month>.auto so the whole team's reports use them
-  let autoTimer = null;
-  function scheduleAutoKpis(){
-    if (!isLeadTeam() || !db) return; clearTimeout(autoTimer);
-    autoTimer = setTimeout(async () => {
-      const months = [...new Set(state.inq.map(q=>(q.receivedAt||"").slice(0,7)).filter(Boolean))];
-      state.inq.filter(q=>q.crm?.wonDate).forEach(q=>months.push(q.crm.wonDate.slice(0,7)));
-      for (const k of [...new Set(months)]) {
-        const t = inqTotals(k), cur = state.kpis[k]?.auto || {};
-        const same = Object.keys(t).every(f => cur[f]===t[f]);
-        if (!same) { try { await db.collection("kpis").doc(k).set({ month:k, auto:{...t, updatedAt:Date.now()} }, { merge:true }); } catch(e){} }
-      }
-    }, 1500);
-  }
-
-  // ---------- CRM (Supabase) — signs in with Jacinto's own CRM login; RLS applies ----------
   let crm = null, crmUser = null;
+  state.crmDeals = [];
   function crmClient(){
     if (crm) return crm;
     const c = window.PA_CRM; if (!c || !c.url || !c.key || !window.supabase) return null;
     crm = window.supabase.createClient(c.url, c.key, { auth: { storageKey:"prime-planner-crm", persistSession:true } });
     return crm;
   }
+  // first date a deal reached a stage (from stage_history; deals created at a later stage count from creation)
+  function reachedOn(d, stage){
+    const r = stageRank(stage), created = (d.created_at||"").slice(0,10);
+    const hits = (Array.isArray(d.stage_history)?d.stage_history:[]).filter(h=>stageRank(h.stage)>=r).map(h=>String(h.date||"").slice(0,10)).filter(Boolean).sort();
+    if (hits.length) return hits[0];
+    if (stageRank(d.stage)>=r) return stage==="Closed Sale" && d.won_date ? d.won_date : created;
+    return null;
+  }
+  function crmMonth(k){
+    const inMonth = s => (s||"").slice(0,7)===k;
+    const deals = state.crmDeals;
+    const created = deals.filter(d=>inMonth(new Date(d.created_at).toLocaleDateString("en-CA",{timeZone:"Asia/Manila"})));
+    const won = deals.filter(d=>d.stage==="Closed Sale" && inMonth(d.won_date || reachedOn(d,"Closed Sale")));
+    return { crmLeads: created.length,
+      qualified: deals.filter(d=>inMonth(reachedOn(d,"Qualified"))).length,
+      consults: deals.filter(d=>inMonth(reachedOn(d,"Site Inspection"))).length,
+      closedDeals: won.length, won };
+  }
+  async function crmSync(quiet){
+    const c = crmClient(); if (!c || !crmUser || !isAdmin()) return;
+    const { data, error } = await c.from("crm_deals").select("id,client,farm,location,source,stage,status,value,quoted_value,won_date,stage_history,created_at");
+    if (error) { state.crmError = "Couldn't read the CRM: "+error.message; render(); return; }
+    state.crmError = null;
+    state.crmDeals = data.filter(d => MKT_SOURCES.some(s => String(d.source||"").toLowerCase().startsWith(s)));
+    state.crmSyncedAt = Date.now();
+    // share month totals with the team (counts only; client names and values stay with you)
+    const months = new Set(periods().filter(p=>p.kind!=="quarter").map(p=>ym(p.start)));
+    for (const k of months) {
+      const t = crmMonth(k), cur = state.kpis[k]?.crm || {};
+      const next = { crmLeads:t.crmLeads, qualified:t.qualified, consults:t.consults, closedDeals:t.closedDeals };
+      if (Object.keys(next).some(f=>cur[f]!==next[f])) { try { await db.collection("kpis").doc(k).set({ month:k, crm:{...next, syncedAt:Date.now()} }, { merge:true }); } catch(e){} }
+    }
+    if (!quiet) toast("CRM numbers updated");
+    render();
+  }
   async function crmCheck(){
     const c = crmClient(); if (!c || !isAdmin()) { crmUser = null; return; }
     const { data } = await c.auth.getSession(); crmUser = data?.session?.user || null;
-    if (crmUser) crmSync();
+    if (crmUser) { await crmSync(true); clearInterval(state.crmTimer); state.crmTimer = setInterval(()=>crmSync(true), 15*60e3); }
+    render();
   }
-  async function crmSync(){
-    const c = crmClient(); if (!c || !crmUser) return;
-    const { data, error } = await c.from("crm_deals").select("id,client,stage,status,value,quoted_value,won_date,mkt_inquiry_id").not("mkt_inquiry_id","is",null);
-    if (error) { state.crmError = error.message.includes("mkt_inquiry_id") ? "The CRM needs its one-time update (mkt_inquiry_id column)." : "Couldn't read the CRM: "+error.message; render(); return; }
-    state.crmError = null;
-    for (const d of data) {
-      const q = state.inq.find(x=>x.id===d.mkt_inquiry_id); if (!q) continue;
-      const next = { dealId:d.id, client:d.client, stage:d.stage, status:d.status, value:d.value||0, quotedValue:d.quoted_value||0, wonDate:d.won_date||"" };
-      if (JSON.stringify(q.crm||{}) !== JSON.stringify({...next, syncedAt:q.crm?.syncedAt})) {
-        try { await db.collection("inquiries").doc(q.id).update({ crm:{...next, syncedAt:Date.now()} }); } catch(e){}
-      }
-    }
-    state.crmSyncedAt = Date.now(); render();
+  function crmPanel(){
+    if (!isAdmin()) return null;
+    if (!window.PA_CRM) return el("p",{class:"hint"},"Add the CRM settings to config.js to pull lead numbers from the Prime Sales CRM.");
+    if (crmUser) return el("div",{class:"bar no-print",style:"justify-content:flex-start"},
+      el("span",{class:"hint"}, `CRM connected as ${crmUser.email}${state.crmSyncedAt?` · ${state.crmDeals.length} Inbound deals · updated ${new Date(state.crmSyncedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}`:""}`),
+      el("button",{type:"button",class:"small",onclick:()=>crmSync(false)},"Update now"),
+      el("button",{type:"button",class:"small",onclick:async()=>{ await crmClient().auth.signOut(); crmUser=null; clearInterval(state.crmTimer); render(); }},"Disconnect"),
+      state.crmError ? el("span",{class:"hint",style:"color:var(--red)"}, state.crmError) : null);
+    const fm = el("form",{class:"bar no-print",style:"justify-content:flex-start"},
+      el("span",{class:"hint"},"Pull lead numbers from the Prime Sales CRM (only you see this):"),
+      el("input",{id:"c-email",type:"email",placeholder:"CRM email",value:me||"",style:"flex:1 1 180px",autocomplete:"username"}),
+      el("input",{id:"c-pass",type:"password",placeholder:"CRM password",style:"flex:1 1 140px",autocomplete:"current-password"}),
+      el("button",{class:"small primary",type:"submit"},"Connect CRM"));
+    fm.onsubmit = async ev => { ev.preventDefault();
+      const { data, error } = await crmClient().auth.signInWithPassword({ email:$("c-email").value.trim(), password:$("c-pass").value });
+      if (error) { toast("CRM sign-in failed: "+error.message); return; }
+      crmUser = data.user; toast("CRM connected"); crmCheck(); };
+    return fm;
   }
-  async function crmCreateLead(q){
-    const c = crmClient(); if (!c || !crmUser) { toast("Connect the CRM first"); return; }
-    const farmType = isBreeder(q.segment) ? "Breeder" : isBroiler(q.segment) ? "Broiler" : "Other";
-    const houseModel = /CCS3|CCS4|MTC/.exec(q.segment||"")?.[0] || "";
-    const row = { client:q.name||"Marketing inquiry", farm:q.farm||"", location:q.location||"", contact:q.contact||"", source:"Inbound",
-      lead_source:`Marketing · ${q.channel||"Unknown"}${q.sourcePost?" · "+q.sourcePost:""}`, farm_type:farmType, house_model:houseModel,
-      reqs:[q.project&&`Project: ${q.project}`, q.timeline&&`Timeline: ${q.timeline}`, q.segment&&`Segment: ${q.segment}`, q.notes].filter(Boolean).join("\n"),
-      next_action:"Follow up the marketing inquiry", next_action_date: iso(addDays(new Date(),1)), mkt_inquiry_id:q.id };
-    const { data, error } = await c.from("crm_deals").insert(row).select("id,stage,status,value,quoted_value,won_date,client").single();
-    if (error) { toast(error.message.includes("mkt_inquiry_id") ? "The CRM needs its one-time update first." : "The CRM didn't accept it: "+error.message); return; }
-    try { await db.collection("inquiries").doc(q.id).update({ sentToSalesAt: q.sentToSalesAt || new Date().toISOString(),
-      crm:{ dealId:data.id, client:data.client, stage:data.stage, status:data.status, value:data.value||0, quotedValue:data.quoted_value||0, wonDate:data.won_date||"", syncedAt:Date.now() }, ...stamp() }); } catch(e){ failed(e); return; }
-    toast("Lead created in the CRM");
-  }
-
-  // ---------- Inquiries tab ----------
-  const inqDlg = el("dialog",{"aria-labelledby":"inqTitle"}); document.body.append(inqDlg);
-  function openInquiry(q){
-    const v = q || { receivedAt: localDT(new Date()), channel:"Facebook Messenger", handledBy: TEAM.find(t=>t.email===me)?.name || "Anne" };
-    const f = (id, lab, input, full) => el("label",{class:full?"full":null}, lab, input);
-    const inp = (id, attrs={}) => el("input",{id, ...attrs});
-    const segSel = el("select",{id:"q-seg"}, [["",""],...SEGMENTS.map(s=>[s,s])].map(([a,b])=>el("option",{value:a, selected:(v.segment||"")===a}, b||"Not sure yet")));
-    const chSel = el("select",{id:"q-ch"}, CHANNELS.map(c=>el("option",{selected:v.channel===c},c)));
-    const byPosts = state.items.filter(isPost).filter(p=>p.date<=todayISO()).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40);
-    const postSel = el("select",{id:"q-post"}, [el("option",{value:""},"Not sure / not from a post"), ...byPosts.map(p=>el("option",{value:p.id, selected:v.postId===p.id}, `${short(p.date)} · ${p.type.replace(" post","")} · ${(p.title||"untitled").slice(0,50)}`))]);
-    const form = el("form",{class:"f",novalidate:true},
-      f("q-name","Name", inp("q-name",{value:v.name||"",maxlength:"120",required:true}), true),
-      f("q-contact","Contact (number / email / FB)", inp("q-contact",{value:v.contact||"",maxlength:"160"})),
-      f("q-loc","Location", inp("q-loc",{value:v.location||"",maxlength:"120",placeholder:"Province / town"})),
-      f("q-recv","Received", inp("q-recv",{type:"datetime-local",value:v.receivedAt?localDT(v.receivedAt):""})),
-      f("q-ans","Answered", inp("q-ans",{type:"datetime-local",value:v.answeredAt?localDT(v.answeredAt):""})),
-      f("q-ch","Channel", chSel), f("q-seg","Segment", segSel),
-      f("q-post","From which post", postSel, true),
-      f("q-proj","Farm project", inp("q-proj",{value:v.project||"",maxlength:"200",placeholder:"e.g. 2 tunnel-vent breeder houses"}), true),
-      f("q-time","Timeline", inp("q-time",{value:v.timeline||"",maxlength:"80",placeholder:"e.g. build by Q2 2027"})),
-      el("label",{style:"display:flex;gap:8px;align-items:center;align-self:end;color:var(--fg)"}, el("input",{type:"checkbox",id:"q-qual",style:"width:auto",checked:!!v.qualified}), "Qualified: has a project, a location and a realistic timeline"),
-      f("q-sales","Sent to sales", inp("q-sales",{type:"datetime-local",value:v.sentToSalesAt?localDT(v.sentToSalesAt):""})),
-      f("q-by","Handled by", el("select",{id:"q-by"}, TEAM.map(t=>el("option",{selected:v.handledBy===t.name},t.name)))),
-      f("q-notes","Notes", el("textarea",{id:"q-notes",maxlength:"1500"}, v.notes||""), true),
-      v.crm ? el("p",{class:"full hint",style:"margin:0"}, `In the CRM: ${v.crm.stage}${v.crm.status==="lost"?" (lost)":""}${(v.crm.quotedValue||v.crm.value)?` · ₱${fmtN(v.crm.quotedValue||v.crm.value)}`:""}`) : null,
-      el("div",{class:"actions"},
-        el("div",{class:"left"}, q ? el("button",{type:"button",class:"danger",onclick:async()=>{ if (q.crm) { toast("This inquiry is linked to a CRM deal; close it in the CRM instead."); return; } try { await db.collection("inquiries").doc(q.id).delete(); inqDlg.close(); toast("Deleted"); } catch(e){ failed(e); } }},"Delete") : null),
-        el("button",{type:"button",onclick:()=>inqDlg.close()},"Cancel"), el("button",{type:"submit",class:"primary"},"Save")));
-    form.onsubmit = async ev => {
-      ev.preventDefault(); const name = $("q-name").value.trim(); if (!name) { $("q-name").focus(); toast("Add the person's name"); return; }
-      const dt = id => $(id).value ? new Date($(id).value).toISOString() : null;
-      const post = state.items.find(p=>p.id===$("q-post").value);
-      const body = { name, contact:$("q-contact").value.trim(), location:$("q-loc").value.trim(), receivedAt:dt("q-recv")||new Date().toISOString(), answeredAt:dt("q-ans"),
-        channel:$("q-ch").value, segment:$("q-seg").value, postId:post?.id||"", sourcePost:post?`${post.date} ${post.type.replace(" post","")}: ${(post.title||"").slice(0,60)}`:"",
-        project:$("q-proj").value.trim(), timeline:$("q-time").value.trim(), qualified:$("q-qual").checked, sentToSalesAt:dt("q-sales"), handledBy:$("q-by").value, notes:$("q-notes").value.trim() };
-      if (body.qualified && !(q?.qualified)) body.qualifiedAt = new Date().toISOString();
-      try { if (q) await db.collection("inquiries").doc(q.id).update({...body, ...stamp()}); else await db.collection("inquiries").add({...body, createdAt:Date.now(), ...(me?{createdBy:me}:{}), ...stamp()}); inqDlg.close(); toast("Saved"); } catch(e){ failed(e); }
-    };
-    inqDlg.replaceChildren(el("div",{class:"dlg-head"}, el("h3",{id:"inqTitle"}, q?"Edit inquiry":"Log an inquiry")), form);
-    inqDlg.showModal(); setTimeout(()=>$("q-name").focus(),30);
-  }
-  function renderInquiries(){
-    const host = $("v-inquiries");
-    if (!isLeadTeam()) { host.replaceChildren(el("p",{class:"hint"},"This page is only available to Anne and Jacinto.")); return; }
-    if (!state.inqMonth) state.inqMonth = ym(new Date());
-    const k = state.inqMonth, t = inqTotals(k);
-    const rows = state.inq.filter(q => (q.receivedAt||"").slice(0,7)===k).sort((a,b)=>(b.receivedAt||"").localeCompare(a.receivedAt||""));
-    const monthSel = el("select",{style:"width:auto","aria-label":"Month"}, periods().filter(p=>p.kind==="month").map(p=>el("option",{value:ym(p.start),selected:ym(p.start)===k}, monthName(p.start))));
-    monthSel.onchange = () => { state.inqMonth = monthSel.value; renderInquiries(); };
-    const crmBox = !isAdmin() ? null : !window.PA_CRM ? el("p",{class:"hint"},"Add the CRM settings to config.js to connect the Prime Sales CRM.") :
-      crmUser ? el("div",{class:"bar",style:"justify-content:flex-start"}, el("span",{class:"hint"}, `CRM connected as ${crmUser.email}${state.crmSyncedAt?` · synced ${fmtDT(state.crmSyncedAt)}`:""}`),
-        el("button",{type:"button",class:"small",onclick:crmSync},"Sync now"), el("button",{type:"button",class:"small",onclick:async()=>{ await crmClient().auth.signOut(); crmUser=null; render(); }},"Disconnect"),
-        state.crmError ? el("span",{class:"hint",style:"color:var(--red)"}, state.crmError) : null) :
-      (() => { const fm = el("form",{class:"bar",style:"justify-content:flex-start"}, el("span",{class:"hint"},"Connect the Prime Sales CRM with your CRM login:"),
-          el("input",{id:"c-email",type:"email",placeholder:"CRM email",value:me||"",style:"flex:1 1 180px",autocomplete:"username"}), el("input",{id:"c-pass",type:"password",placeholder:"CRM password",style:"flex:1 1 140px",autocomplete:"current-password"}), el("button",{class:"small primary",type:"submit"},"Connect"));
-        fm.onsubmit = async ev => { ev.preventDefault(); const { data, error } = await crmClient().auth.signInWithPassword({ email:$("c-email").value.trim(), password:$("c-pass").value });
-          if (error) { toast("CRM sign-in failed: "+error.message); return; } crmUser = data.user; toast("CRM connected"); crmSync(); };
-        return fm; })();
-    host.replaceChildren(
-      el("div",{class:"bar"}, el("h2",{class:"sec"},"Inquiry log"), el("div",{class:"weeknav"}, monthSel, el("button",{class:"primary",type:"button",onclick:()=>openInquiry(null)},"+ Log inquiry"))),
-      el("p",{class:"hint",style:"margin:0"},"Log every inquiry from the inbox, Gmail and comments. The month's lead KPIs are counted from this list and shared with the team as totals only; names and contacts stay with you and Anne."),
-      crmBox,
-      el("div",{class:"stats"},
-        el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Inquiries"), el("b",{},String(t.inquiries)), el("small",{},`${t.answered24} answered within 24 hrs${t.inquiries?` (${pct(t.answered24/t.inquiries)})`:""}`)),
-        el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Qualified"), el("b",{},String(t.qualified)), el("small",{},`target ${CFG.qualifiedPerMonth} a month · ${t.toSales} to sales within 1 working day`)),
-        el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Consults / site visits"), el("b",{},String(t.consults)), el("small",{},"CRM stage Site Inspection or later")),
-        el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Closed this month"), el("b",{},String(t.closedDeals)), el("small",{}, isAdmin()?`₱${fmtN(t.wonValue)} won · ₱${fmtN(t.pipelineValue)} open pipeline from this month's leads`:"from marketing leads"))),
-      el("div",{class:"tablewrap"}, el("table",{},
-        el("thead",{}, el("tr",{}, ...["Received","Name","Channel","Segment","Answered","Qualified","To sales","CRM",""].map(h=>el("th",{},h)))),
-        el("tbody",{}, rows.length ? rows.map(q => {
-          const late = q.answeredAt ? !within24(q) : (Date.now()-toDT(q.receivedAt) > 24*3600e3);
-          return el("tr",{class:"click",tabindex:"0",onclick:()=>openInquiry(q),onkeydown:e=>{if(e.key==="Enter")openInquiry(q);}},
-            el("td",{style:"white-space:nowrap"}, fmtDT(q.receivedAt)), el("td",{style:"font-weight:600"}, q.name, q.location?el("div",{class:"hint"},q.location):null),
-            el("td",{}, q.channel||""), el("td",{}, q.segment?el("span",{class:"seg"},q.segment):""),
-            el("td",{style:"white-space:nowrap"+(late?";color:var(--red)":"")}, q.answeredAt ? fmtDT(q.answeredAt) : (late?"Overdue":"Not yet"), !q.answeredAt ? el("div",{}, el("button",{type:"button",class:"small",onclick:async e=>{ e.stopPropagation(); try { await db.collection("inquiries").doc(q.id).update({answeredAt:new Date().toISOString(), ...stamp()}); toast("Marked answered"); } catch(err){ failed(err); } }},"Answered now")) : null),
-            el("td",{}, q.qualified ? "Yes" : "No"),
-            el("td",{style:"white-space:nowrap"}, q.sentToSalesAt ? fmtDT(q.sentToSalesAt) : q.qualified ? el("span",{style:"color:var(--warn)"},"Pending") : ""),
-            el("td",{}, q.crm ? el("span",{class:"seg"}, q.crm.stage+(q.crm.status==="lost"?" · lost":"")) : (q.qualified && isAdmin() && crmUser ? el("button",{type:"button",class:"small primary",onclick:e=>{ e.stopPropagation(); crmCreateLead(q); }},"Create CRM lead") : "")),
-            el("td",{class:"hint"}, q.sourcePost ? "From post" : ""));
-        }) : [el("tr",{}, el("td",{colspan:"9",class:"empty"}, `No inquiries logged for ${monthName(parse(k+"-01"))} yet.`))]))));
-  }
-  // Closed marketing deals from the CRM, for the Incentives tab
-  const crmClosedDeals = () => state.inq.filter(q=>q.crm && q.crm.stage==="Closed Sale").map(q=>({ id:"crm-"+q.crm.dealId, client:q.crm.client||q.name, contractDate:q.crm.wonDate||"", leadBy:q.handledBy||"", amount:CFG.dealBonus, fromCrm:true }));
+  // Closed Inbound deals, for deal bonuses in the Incentives tab
+  const crmClosedDeals = () => state.crmDeals.filter(d=>d.stage==="Closed Sale").map(d=>({ id:"crm-"+d.id, client:d.client||d.farm||"CRM deal", contractDate:d.won_date||reachedOn(d,"Closed Sale")||"", leadBy:"", amount:CFG.dealBonus, fromCrm:true }));
 
   setView(state.view);
 
@@ -1259,7 +1168,6 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       sub("kpis","kpis", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
       sub("reference","reference", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
       ...(isAdmin() ? [sub("incentives","inc", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()])))] : []),
-      ...(isLeadTeam() ? [sub("inquiries","inq", docs => { const list = docs.map(d=>({id:d.id, ...d.data()})); setTimeout(scheduleAutoKpis,0); return list; })] : []),
     ];
   }
   const cfgOk = window.PA_FIREBASE_CONFIG && !String(window.PA_FIREBASE_CONFIG.apiKey||"").startsWith("PASTE");
@@ -1276,7 +1184,6 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       $("login").hidden = true; $("app").hidden = false;
       nameOf(me).then(n => $("whoName").textContent = n);
       $("t-incentives").hidden = !isAdmin(); if (!isAdmin() && state.view==="incentives") setView("week");
-      $("t-inquiries").hidden = !isLeadTeam(); if (!isLeadTeam() && state.view==="inquiries") setView("week");
       crmCheck().catch(()=>{});
       start();
     });
