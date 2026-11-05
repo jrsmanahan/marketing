@@ -413,7 +413,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     {id:"Yuan", role:"B-roll, drone", c:"--c-yuan"},
   ];
   const POST_TYPES = ["Reel post","Photo post","YouTube video"];
-  const TYPES = [...POST_TYPES,"Shoot","Edit","Write-up / SEO","Website / LinkedIn","On-ground activity","Inquiry follow-up","Meeting","Admin"];
+  const TYPES = [...POST_TYPES,"Shoot","Edit","Write-up / SEO","Website / LinkedIn","On-ground activity","Inquiry follow-up","Meeting","Training","Admin"];
   const STATUSES = ["todo","doing","review","approved","scheduled","done"];
   const label = (s, isPost) => ({todo:"Not started",doing:isPost?"Editing":"In progress",review:"For approval",approved:"Approved",scheduled:"Scheduled",done:isPost?"Posted":"Done"})[s] || s;
   // Target segments. Breeder vs all Broiler types is the 70/30 split.
@@ -444,7 +444,8 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   const monthName = (d,o={month:"long",year:"numeric"}) => d.toLocaleDateString("en-US",o);
   const fmtTime = t => { if(!t) return ""; const [h,m]=t.split(":").map(Number); return `${((h+11)%12)+1}:${pad(m)}${h<12?"am":"pm"}`; };
   const short = d => parse(d).toLocaleDateString("en-US",{month:"short",day:"numeric"});
-  const pColor = name => { const p = PEOPLE.find(p=>p.id===name); return p ? `var(${p.c})` : "var(--muted)"; };
+  const WHOLE_TEAM = "Whole team";
+  const pColor = name => { if (name===WHOLE_TEAM) return "var(--navy)"; const p = PEOPLE.find(p=>p.id===name); return p ? `var(${p.c})` : "var(--muted)"; };
   const isPost = it => POST_TYPES.includes(it.type);
   const fmtN = n => n==null||isNaN(n) ? "—" : Number(n).toLocaleString("en-US");
   const pct = n => n==null||isNaN(n) ? "—" : Math.round(n*100)+"%";
@@ -474,7 +475,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     for (const k of kids.flat()) if (k!=null && k!==false) e.append(k.nodeType ? k : document.createTextNode(k));
     return e;
   }
-  const visible = it => (state.who==="All" || it.owner===state.who);
+  const visible = it => (state.who==="All" || it.owner===state.who || it.owner===WHOLE_TEAM);
   const titleOf = it => it.title || (isPost(it) ? `${it.type.replace(" post","")} for ${it.segment||"—"}, topic not picked yet` : "Untitled");
 
   // ---------- views ----------
@@ -603,7 +604,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     ["views","Facebook views this month"],["engagement","Facebook engagement this month"],
     ["inquiries","Inquiries received (inbox + Gmail)"],["answered24","Answered within 24 hrs"],
     ["qualified","Qualified project inquiries"],["toSales","Passed to sales within 1 working day"],
-    ["closedDeals","Closed deals (Inbound)"]];
+    ["closedDeals","Closed deals (Marketing dept)"]];
   const BASE_KEY = ym(addMonths(parse(CFG.trialStart),-1));
   function periods(){
     const out = [{kind:"baseline", start:addMonths(parse(CFG.trialStart),-1), months:1}], start = parse(CFG.trialStart), now = new Date();
@@ -651,7 +652,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const fEnd = snapVal(lastKey,"followers"), fStart = snapVal(prevKey,"followers");
     const yEnd = snapVal(lastKey,"ytSubs"), yStart = snapVal(prevKey,"ytSubs");
     const inquiries = sum("inquiries"), answered = sum("answered24");
-    const people = PEOPLE.map(pp => { const mine = inP.filter(x=>x.owner===pp.id && x.date<=upto); const done = mine.filter(published).length; return {id:pp.id, due:mine.length, done, open:mine.length-done}; });
+    const people = PEOPLE.map(pp => { const mine = inP.filter(x=>(x.owner===pp.id || x.owner===WHOLE_TEAM) && x.date<=upto); const done = mine.filter(published).length; return {id:pp.id, due:mine.length, done, open:mine.length-done}; });
     const r = { p, s, e, upto, months, planned:posts.length, due:due.length, pub:pub.length, regPub:regPub.length,
       reels:cnt("Reel post"), photos:cnt("Photo post"), yt:cnt("YouTube video"), holiday:pub.length-regPub.length,
       breederShare: reg.length? br/reg.length : null, regular:reg.length, broilerMix,
@@ -713,9 +714,9 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       {l:"Qualified project inquiries", v:fmtN(r.qualified), g:grade(r.qualified, CFG.qualifiedPerMonth*M, 0.5), sub:`target ${CFG.qualifiedPerMonth} a month · marketing deals with the land, market and timeline gates ticked in the CRM`},
       {l:"Answered within 24 hrs", v:pct(r.answered24), g:grade(r.answered24, CFG.answered24, 0.947), sub:r.inquiries!=null?`${fmtN(r.answered)} of ${fmtN(r.inquiries)} inquiries · target 95%`:"Enter inquiries received and answered"},
       {l:"Passed to sales within 1 working day", v:r.qualified?`${fmtN(r.toSales)} of ${fmtN(r.qualified)}`:"—", g:r.qualified?grade((r.toSales||0)/r.qualified,1,0.9):"na", sub:"qualified leads go to sales within 1 working day"},
-      {l:"Marketing leads in the CRM", v:fmtN(r.months.some(k=>state.kpis[k]?.crm)?r.months.reduce((a,k)=>a+(state.kpis[k]?.crm?.crmLeads||0),0):null), g:"na", sub:"new deals with source Inbound"},
-      {l:"Consults / site visits", v:fmtN(r.months.some(k=>state.kpis[k]?.crm)?r.months.reduce((a,k)=>a+(state.kpis[k]?.crm?.consults||0),0):null), g:"na", sub:"Inbound deals that reached Site Inspection or later"},
-      {l:"Closed deals (deal bonus)", v:fmtN(r.closedDeals), g:"na", sub:"Inbound deals marked Closed Sale in the CRM"},
+      {l:"Marketing leads in the CRM", v:fmtN(r.months.some(k=>state.kpis[k]?.crm)?r.months.reduce((a,k)=>a+(state.kpis[k]?.crm?.crmLeads||0),0):null), g:"na", sub:"new CRM deals with lead source Marketing dept"},
+      {l:"Consults / site visits", v:fmtN(r.months.some(k=>state.kpis[k]?.crm)?r.months.reduce((a,k)=>a+(state.kpis[k]?.crm?.consults||0),0):null), g:"na", sub:"Marketing dept deals that reached Site Inspection or later"},
+      {l:"Closed deals (deal bonus)", v:fmtN(r.closedDeals), g:"na", sub:"Marketing dept deals marked Closed Sale in the CRM"},
     ]});
     secs.push({sec:"Production & team", rows:[
       {l:"First edits approved with ≤1 revision", v:pct(r.firstEdit), g:grade(r.firstEdit, CFG.firstEditOk, 0.714), sub:`${r.editsCounted} edits went through approval · target 70% by month 3 (counted from status changes)`},
@@ -761,7 +762,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
         $("snapFields").replaceChildren(...flds.map(([f,l])=>el("label",{}, l, el("input",{type:"number",min:"0",id:"s-"+f,inputmode:"numeric"}))));
         for (const [f] of flds) $("s-"+f).value = s[f] ?? (p.kind==="baseline" && f==="followers" ? CFG.baseline.followers : "");
         $("s-notes").value = s.notes ?? ""; $("s-evidence").value = s.evidence ?? "";
-        for (const f of AUTO_FIELDS) { const inp = $("s-"+f); if (inp && s.crm && s.crm[f]!=null) { inp.value = s.crm[f]; inp.readOnly = true; inp.title = "From the Prime Sales CRM (Inbound deals)"; inp.closest("label").append(el("span",{class:"hint",style:"font-weight:400"},"from the CRM")); } }
+        for (const f of AUTO_FIELDS) { const inp = $("s-"+f); if (inp && s.crm && s.crm[f]!=null) { inp.value = s.crm[f]; inp.readOnly = true; inp.title = "From the Prime Sales CRM (Marketing dept deals)"; inp.closest("label").append(el("span",{class:"hint",style:"font-weight:400"},"from the CRM")); } }
         $("snapSaved").textContent = s.updatedAt ? `Last saved ${new Date(s.updatedAt).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}` : "Not entered yet";
       }
       [...$("snapForm").elements].forEach(x=>x.disabled=!canWrite);
@@ -825,7 +826,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   // ---------- form ----------
   const dlg = $("dlg"); let editing = null, prefill = null;
   $("f-type").append(...TYPES.map(t=>el("option",{value:t},t)));
-  $("f-owner").append(...PEOPLE.map(p=>el("option",{value:p.id},`${p.id} · ${p.role}`)));
+  $("f-owner").append(...PEOPLE.map(p=>el("option",{value:p.id},`${p.id} · ${p.role}`)), el("option",{value:WHOLE_TEAM},"Whole team · everyone"));
   function fillStatuses(post, cur){ $("f-status").replaceChildren(...STATUSES.map(s=>el("option",{value:s},label(s,post)))); $("f-status").value = cur||"todo"; }
   function togglePost(){ const t=$("f-type").value, post = POST_TYPES.includes(t); document.querySelectorAll(".post-only").forEach(x=>x.hidden=!post); document.querySelectorAll(".nonpost").forEach(x=>x.hidden=post); if (t==="Edit") { $("f-rev").closest("label").hidden=false; } $("f-capcut").closest("label").hidden = !(post || t==="Edit"); fillStatuses(post, $("f-status").value); }
   $("f-type").onchange = togglePost;
@@ -1139,7 +1140,7 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
     <tbody>${funnel.map(x => `<tr><td>${esc(x.label)}</td>${x.future?`<td colspan="5" class="num" style="color:var(--muted)">Not yet</td>`:`<td class="num">${x.leads}</td><td class="num">${x.qualified}</td><td class="num">${x.consults}</td><td class="num">${x.closed}</td><td class="num">${php(x.wonValue)}</td>`}</tr>`).join("")}</tbody>
     <tfoot><tr><td>Period</td><td class="num">${sum("leads")}</td><td class="num">${sum("qualified")}</td><td class="num">${sum("consults")}</td><td class="num">${sum("closed")}</td><td class="num">${php(sum("wonValue"))}</td></tr></tfoot>
   </table>
-  <p class="note">Lead to qualified: ${rate(sum("qualified"),sum("leads"))} · Qualified to closed: ${rate(sum("closed"),sum("qualified"))} · ${lateStage.length} lead${lateStage.length===1?"":"s"} from this period at Proposal stage or later · Baseline before BRICATO: about 5 inbound leads a month (Aug–Oct 2026). Source: Prime Sales CRM, deals with source Inbound/Marketing, as of ${dLong(todayISO())}.</p>
+  <p class="note">Lead to qualified: ${rate(sum("qualified"),sum("leads"))} · Qualified to closed: ${rate(sum("closed"),sum("qualified"))} · ${lateStage.length} lead${lateStage.length===1?"":"s"} from this period at Proposal stage or later · Baseline before BRICATO: about 6 marketing leads a month (Aug–Oct 2026). Source: Prime Sales CRM, deals with lead source Marketing dept, as of ${dLong(todayISO())}.</p>
 
   <h2>Qualified leads generated</h2>
   <table>
@@ -1225,7 +1226,7 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
     if (!isAdmin()) return null;
     if (!window.PA_CRM) return el("p",{class:"hint"},"Add the CRM settings to config.js to pull lead numbers from the Prime Sales CRM.");
     if (crmUser) return el("div",{class:"bar no-print",style:"justify-content:flex-start"},
-      el("span",{class:"hint"}, `CRM connected as ${crmUser.email}${state.crmSyncedAt?` · ${state.crmDeals.length} Inbound deals · updated ${new Date(state.crmSyncedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}`:""}`),
+      el("span",{class:"hint"}, `CRM connected as ${crmUser.email}${state.crmSyncedAt?` · ${state.crmDeals.length} Marketing dept deals · updated ${new Date(state.crmSyncedAt).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}`:""}`),
       el("button",{type:"button",class:"small",onclick:()=>crmSync(false)},"Update now"),
       el("button",{type:"button",class:"small",onclick:async()=>{ await crmClient().auth.signOut(); crmUser=null; clearInterval(state.crmTimer); render(); }},"Disconnect"),
       state.crmError ? el("span",{class:"hint",style:"color:var(--red)"}, state.crmError) : null);
