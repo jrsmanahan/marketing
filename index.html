@@ -390,7 +390,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     trialStart: "2026-11-01",
     reelsPerWeek: 2, photosPerWeek: 2, breederShare: 0.70,
     // Marketing Services Agreement, Oct 22 2026
-    reelsPerMonth: 8, photosPerMonth: 8, ytPerMonth: 2, postsPerMonth: 16, onSchedule: 0.90,
+    reelsPerMonth: 8, photosPerMonth: 8, ytPerMonth: 2, postsPerMonth: 16, linkedinPerWeek: 1, onSchedule: 0.90,
     baseline: { followers: 5300, viewsPerMonth: 39000, engagementPerMonth: 1700 },
     followersGain90: 900, viewsPerMonth: 100000, engagementPerMonth: 4000, ytSubsGain90: 150,
     payout: { signed: "2026-10-22", firstMonths: 6, thenMonths: 3 },
@@ -412,7 +412,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     {id:"Christian", role:"A-roll, editing", c:"--c-christian"},
     {id:"Yuan", role:"B-roll, drone", c:"--c-yuan"},
   ];
-  const POST_TYPES = ["Reel post","Photo post","YouTube video"];
+  const POST_TYPES = ["Reel post","Photo post","YouTube video","LinkedIn post"];
   const TYPES = [...POST_TYPES,"Shoot","Edit","Write-up / SEO","Website / LinkedIn","On-ground activity","Inquiry follow-up","Meeting","Training","Admin"];
   const STATUSES = ["todo","doing","review","approved","scheduled","done"];
   const label = (s, isPost) => ({todo:"Not started",doing:isPost?"Editing":"In progress",review:"For approval",approved:"Approved",scheduled:"Scheduled",done:isPost?"Posted":"Done"})[s] || s;
@@ -518,10 +518,11 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const s = iso(wk), e = iso(end), today = todayISO();
     const inWeek = state.items.filter(it => it.date>=s && it.date<=e);
     const mine = inWeek.filter(visible);
-    const reels = inWeek.filter(i=>i.type==="Reel post"), photos = inWeek.filter(i=>i.type==="Photo post");
+    const reels = inWeek.filter(i=>i.type==="Reel post"), photos = inWeek.filter(i=>i.type==="Photo post"), lnk = inWeek.filter(i=>i.type==="LinkedIn post");
     const meter = (n,goal) => { const i=el("i",{style:`width:${Math.min(100,Math.round(n/goal*100))}%`}); if(n>=goal) i.className="full"; return el("div",{class:"meter"},i); };
     $("stats").replaceChildren(
       el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Reels this week"), el("b",{}, `${reels.filter(published).length} / ${CFG.reelsPerWeek}`), meter(reels.filter(published).length,CFG.reelsPerWeek), el("small",{}, `${reels.length} planned · target ${CFG.reelsPerWeek} a week`)),
+      el("div",{class:"stat"}, el("span",{class:"eyebrow"},"LinkedIn this week"), el("b",{}, `${lnk.filter(published).length} / ${CFG.linkedinPerWeek}`), meter(lnk.filter(published).length,CFG.linkedinPerWeek), el("small",{}, `${lnk.length} planned · target ${CFG.linkedinPerWeek} a week`)),
       el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Photo posts this week"), el("b",{}, `${photos.filter(published).length} / ${CFG.photosPerWeek}`), meter(photos.filter(published).length,CFG.photosPerWeek), el("small",{}, `${photos.length} planned · target ${CFG.photosPerWeek} a week`)),
       el("div",{class:"stat"}, el("span",{class:"eyebrow"}, state.who==="All"?"Team activities":`${state.who}'s activities`), el("b",{}, String(mine.length)), el("small",{}, `${mine.filter(published).length} done · ${mine.filter(i=>!published(i)).length} open`)),
       el("div",{class:"stat"}, el("span",{class:"eyebrow"},"On-ground this week"), el("b",{}, String(inWeek.filter(i=>i.type==="On-ground activity").length)), el("small",{},"Every on-ground activity = a marketing asset")));
@@ -570,7 +571,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const subs = [...SEGMENTS.filter(isBroiler), LEGACY_BROILER].map(s=>[s, reg.filter(p=>p.segment===s).length]).filter(([s,n])=>n||s!==LEGACY_BROILER);
     $("calSum").replaceChildren(
       el("span",{},"Posts ", el("b",{},posts.length)), el("span",{},"Reels ", el("b",{},posts.filter(p=>p.type==="Reel post").length)),
-      el("span",{},"Photos ", el("b",{},posts.filter(p=>p.type==="Photo post").length)), el("span",{},"Breeder ", el("b",{},br.length)),
+      el("span",{},"Photos ", el("b",{},posts.filter(p=>p.type==="Photo post").length)), el("span",{},"LinkedIn ", el("b",{},posts.filter(p=>p.type==="LinkedIn post").length)), el("span",{},"Breeder ", el("b",{},br.length)),
       el("span",{},"All broiler ", el("b",{},reg.filter(p=>isBroiler(p.segment)).length)), ...subs.map(([s,n])=>el("span",{},s.replace("Broiler - ","↳ ")+" ", el("b",{},n))), el("span",{},"All Audiences ", el("b",{},posts.length-reg.length)), el("span",{},"Holiday ", el("b",{},posts.filter(isHolidayPost).length)),
       el("span",{},"Breeder share of regular posts ", el("b",{}, reg.length?pct(br.length/reg.length):"—")),
       el("span",{},"Posted ", el("b",{}, posts.filter(published).length)));
@@ -654,7 +655,9 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const inquiries = sum("inquiries"), answered = sum("answered24");
     const people = PEOPLE.map(pp => { const mine = inP.filter(x=>(x.owner===pp.id || x.owner===WHOLE_TEAM) && x.date<=upto); const done = mine.filter(published).length; return {id:pp.id, due:mine.length, done, open:mine.length-done}; });
     const r = { p, s, e, upto, months, planned:posts.length, due:due.length, pub:pub.length, regPub:regPub.length,
-      reels:cnt("Reel post"), photos:cnt("Photo post"), yt:cnt("YouTube video"), holiday:pub.length-regPub.length,
+      reels:cnt("Reel post"), photos:cnt("Photo post"), yt:cnt("YouTube video"), linkedin:pub.filter(x=>x.type==="LinkedIn post").length,
+      linkedinTarget: Math.round(((addMonths(p.start,p.months)-p.start)/864e5)/7*CFG.linkedinPerWeek),
+      linkedinDue: Math.max(0, Math.floor(((parse(upto)-p.start)/864e5+1)/7)*CFG.linkedinPerWeek), holiday:pub.length-regPub.length,
       breederShare: reg.length? br/reg.length : null, regular:reg.length, broilerMix,
       onSchedule: due.length ? due.filter(published).length/due.length : null,
       viewsEntered: withViews.length, avgViews, top, firstEdit, editsCounted: edits.length,
@@ -692,10 +695,11 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       ]});
     }
     secs.push({sec:"Output vs agreement", rows:[
-      {l:"Posts published (excl. holidays)", v:`${r.regPub} / ${CFG.postsPerMonth*M}`, g:grade(r.regPub, CFG.postsPerMonth*M, 0.85), sub:`target ${CFG.postsPerMonth} a month · ${r.planned} posts on the calendar, ${r.due} due so far`},
+      {l:"Facebook posts published (excl. holidays)", v:`${r.reels+r.photos} / ${CFG.postsPerMonth*M}`, g:grade(r.reels+r.photos, CFG.postsPerMonth*M, 0.85), sub:`target ${CFG.postsPerMonth} a month · ${r.planned} posts on the calendar, ${r.due} due so far`},
       {l:"Reels", v:`${r.reels} / ${CFG.reelsPerMonth*M}`, g:grade(r.reels, CFG.reelsPerMonth*M, 0.85), sub:`${CFG.reelsPerMonth} a month (2 a week)`},
       {l:"Photo posts", v:`${r.photos} / ${CFG.photosPerMonth*M}`, g:grade(r.photos, CFG.photosPerMonth*M, 0.85), sub:`${CFG.photosPerMonth} a month (2 a week)`},
       {l:"Long-form YouTube videos", v:`${r.yt} / ${CFG.ytPerMonth*M}`, g:grade(r.yt, CFG.ytPerMonth*M, 0.5), sub:`${CFG.ytPerMonth} a month`},
+      {l:"LinkedIn posts", v:`${r.linkedin} / ${r.linkedinTarget}`, g:r.linkedinDue ? grade(r.linkedin, r.linkedinDue, 0.75) : "na", sub:`${CFG.linkedinPerWeek} a week · ${r.linkedinDue} due so far`},
       {l:"Holiday posts", v:String(r.holiday), g:"na", sub:"Free, on top of the weekly output"},
       {l:"Published on schedule", v:pct(r.onSchedule), g:grade(r.onSchedule, CFG.onSchedule, 0.89), sub:"of posts due so far · Day 90 target 90%"},
       {l:"Breeder share", v:pct(r.breederShare), g:r.breederShare==null?"na":(Math.abs(r.breederShare-CFG.breederShare)<=0.08?"ok":Math.abs(r.breederShare-CFG.breederShare)<=0.15?"warn":"bad"), sub:`of ${r.regular} regular posts · plan 70 breeder / 30 broiler${r.broilerMix.length?" · broiler: "+r.broilerMix.map(([s,n])=>`${s.replace("Broiler - ","")} ${n}`).join(", "):""}`},
