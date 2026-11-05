@@ -439,6 +439,8 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   const fmtLabel = t => t==="Reel post" ? "Reel" : t==="Photo post" ? "Photo" : t==="Long-form video" ? "Long-form" : t;
   const platformsOf = p => Array.isArray(p.platforms) && p.platforms.length ? p.platforms : (DEFAULT_PLATFORMS[p.type] || []);
   const onPlat = (p, k) => platformsOf(p).includes(k);
+  // LinkedIn can't be checked automatically, so a LinkedIn post counts as live only once its LinkedIn link is filled in
+  const liveOnLinkedIn = p => onPlat(p,"linkedin") && !!(p.links?.linkedin) && (published(p) || platformsOf(p).length===1);
   const platAbbr = p => platformsOf(p).map(k=>PLATFORMS.find(x=>x.k===k)?.ab).filter(Boolean).join(" · ");
   // older records: "YouTube video" → long-form; "LinkedIn post" → photo on LinkedIn; single link → Facebook link
   function normPost(x){
@@ -557,7 +559,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const liPhotos = inWeek.filter(i=>isPost(i) && onPlat(i,"linkedin"));
     const mk = ym(wk), ytMonth = state.items.filter(i=>i.type==="Long-form video" && onPlat(i,"youtube") && i.date.startsWith(mk));
     const meter = (n,goal) => { const i=el("i",{style:`width:${Math.min(100,Math.round(n/goal*100))}%`}); if(n>=goal) i.className="full"; return el("div",{class:"meter"},i); };
-    const prow = (lab, list, goal, note) => { const n = list.filter(published).length;
+    const prow = (lab, list, goal, note, isLive = published) => { const n = list.filter(isLive).length;
       return el("div",{class:"prow"}, el("span",{class:"pl"}, lab), el("span",{class:"pv"}, goal!=null ? `${n} / ${goal}` : String(n)), goal!=null ? meter(n, goal) : null, el("small",{}, note ?? `${list.length} planned`)); };
     $("syncLine").replaceChildren(...syncLine().filter(Boolean));
     $("stats").replaceChildren(
@@ -566,7 +568,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"YouTube"),
         prow("Long-form this week", ytLong, null, `${ytLong.length} planned`), prow(`Long-form in ${monthName(wk,{month:"long"})}`, ytMonth, CFG.ytPerMonth, `target ${CFG.ytPerMonth} a month`)),
       el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"LinkedIn this week"),
-        prow("Photos", liPhotos, CFG.linkedinPerWeek)),
+        prow("Photos", liPhotos, CFG.linkedinPerWeek, `${liPhotos.length} planned · counts once the LinkedIn link is added`, liveOnLinkedIn)),
       el("div",{class:"stat"}, el("span",{class:"eyebrow"}, state.who==="All"?"Team activities":`${state.who}'s activities`), el("b",{}, String(mine.length)), el("small",{}, `${mine.filter(published).length} done · ${mine.filter(i=>!published(i)).length} open`)),
       el("div",{class:"stat"}, el("span",{class:"eyebrow"},"On-ground this week"), el("b",{}, String(inWeek.filter(i=>i.type==="On-ground activity").length)), el("small",{},"Every on-ground activity = a marketing asset")));
     const board = $("board"); board.replaceChildren();
@@ -702,7 +704,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       photos:pub.filter(x=>x.type==="Photo post" && onPlat(x,"facebook") && !isHolidayPost(x)).length,
       yt:pub.filter(x=>x.type==="Long-form video" && onPlat(x,"youtube")).length,
       fbLong:pub.filter(x=>x.type==="Long-form video" && onPlat(x,"facebook")).length,
-      linkedin:pub.filter(x=>onPlat(x,"linkedin")).length,
+      linkedin:inP.filter(liveOnLinkedIn).length,
       linkedinTarget: Math.round(((addMonths(p.start,p.months)-p.start)/864e5)/7*CFG.linkedinPerWeek),
       linkedinDue: Math.max(0, Math.floor(((parse(upto)-p.start)/864e5+1)/7)*CFG.linkedinPerWeek), holiday:pub.length-regPub.length,
       breederShare: reg.length? br/reg.length : null, regular:reg.length, broilerMix,
