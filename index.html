@@ -76,6 +76,12 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .prow .pv{font-family:var(--f-display);font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
 .prow .meter{grid-column:1/-1}
 .prow small{grid-column:1/-1;color:var(--muted);font-size:11.5px}
+.ci{font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:999px;background:var(--sunk);white-space:nowrap}
+.ci-ok{color:var(--ok)} .ci-late{color:var(--warn)}
+.ci-btn{animation:none}
+td.att{white-space:nowrap;font-variant-numeric:tabular-nums}
+td.att-ontime{color:var(--ok)} td.att-late{color:var(--warn);font-weight:600} td.att-absent,td.att-missed{color:var(--red);font-weight:600} td.att-leave{color:var(--muted)} td.att-holiday,td.att-off{color:var(--muted)}
+.att-act{margin-left:8px;font-size:11.5px}
 .sync-ok{color:var(--ok)} .sync-off{color:var(--muted)} .sync-err{color:var(--red)}
 .main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
 @media (max-width:1060px){.main{grid-template-columns:minmax(0,1fr)}}
@@ -221,10 +227,11 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       <button class="tab" role="tab" data-view="calendar" id="t-calendar">Content calendar</button>
       <button class="tab" role="tab" data-view="reports" id="t-reports">KPI reports</button>
       <button class="tab" role="tab" data-view="ideas" id="t-ideas">Content bank &amp; ideas</button>
+      <button class="tab" role="tab" data-view="attendance" id="t-attendance" hidden>Attendance</button>
       <button class="tab" role="tab" data-view="incentives" id="t-incentives" hidden>Incentives</button>
       <button id="exportBtn" class="small" style="margin-left:6px" title="Download everything as an Excel backup">Export to Excel</button>
     </div>
-    <div class="who"><span id="whoName"></span><button type="button" class="small" id="signOut">Sign out</button></div>
+    <div class="who"><span id="checkinHost"></span><span id="whoName"></span><button type="button" class="small" id="signOut">Sign out</button></div>
   </header>
 
   <div id="notice" class="notice" hidden></div>
@@ -316,6 +323,9 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     <div class="kgrid" id="kpiGrid"></div>
     <div class="panel"><h3>Report text <span>paste into email or Messenger</span></h3><pre class="report" id="reportText"></pre></div>
   </section>
+
+  <!-- ATTENDANCE (Jacinto + Anne) -->
+  <section id="v-attendance" hidden style="display:grid;gap:14px"></section>
 
   <!-- INCENTIVES (admin only) -->
   <section id="v-incentives" hidden style="display:grid;gap:14px"></section>
@@ -409,7 +419,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     trialStart: "2026-11-01",
     reelsPerWeek: 2, photosPerWeek: 2, breederShare: 0.70,
     // Marketing Services Agreement, Oct 22 2026
-    reelsPerMonth: 8, photosPerMonth: 8, ytPerMonth: 2, postsPerMonth: 16, linkedinPerWeek: 1, syncSince: "2026-10-29", onSchedule: 0.90,
+    reelsPerMonth: 8, photosPerMonth: 8, ytPerMonth: 2, postsPerMonth: 16, linkedinPerWeek: 1, attendanceOnTime: 0.95, syncSince: "2026-10-29", onSchedule: 0.90,
     baseline: { followers: 5300, viewsPerMonth: 39000, engagementPerMonth: 1700 },
     followersGain90: 900, viewsPerMonth: 100000, engagementPerMonth: 4000, ytSubsGain90: 150,
     payout: { signed: "2026-10-22", firstMonths: 6, thenMonths: 3 },
@@ -491,7 +501,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   let state = { view:"week", week: weekStart(new Date()), month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     who:"All", hideDone:false, items:[], bank:[], ideas:[], kpis:{}, loaded:false, period:null };
   try { const s = JSON.parse(localStorage.getItem("planner-view")||"{}"); if(s.who) state.who=s.who; if(s.hideDone) state.hideDone=true; if(s.view) state.view=s.view; } catch(e){}
-  if (location.hash && ["week","calendar","reports","ideas","incentives"].includes(location.hash.slice(1))) state.view = location.hash.slice(1);
+  if (location.hash && ["week","calendar","reports","ideas","attendance","incentives"].includes(location.hash.slice(1))) state.view = location.hash.slice(1);
   const saveView = () => { try{ localStorage.setItem("planner-view", JSON.stringify({who:state.who,hideDone:state.hideDone,view:state.view})); }catch(e){} };
 
   let db = null, canWrite = true, me = null;
@@ -519,17 +529,19 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     state.view=v; saveView();
     try { history.replaceState(null,"","#"+v); } catch(e){}
     for (const t of document.querySelectorAll(".tab")) t.setAttribute("aria-selected", String(t.dataset.view===v));
-    for (const s of ["week","calendar","reports","ideas","incentives"]) $("v-"+s).hidden = s!==v;
+    for (const s of ["week","calendar","reports","ideas","attendance","incentives"]) $("v-"+s).hidden = s!==v;
     render();
   }
   document.querySelectorAll(".tab").forEach(t => t.onclick = () => setView(t.dataset.view));
-  window.addEventListener("hashchange", () => { const v=location.hash.slice(1); if(["week","calendar","reports","ideas","incentives"].includes(v) && v!==state.view) setView(v); });
+  window.addEventListener("hashchange", () => { const v=location.hash.slice(1); if(["week","calendar","reports","ideas","attendance","incentives"].includes(v) && v!==state.view) setView(v); });
 
   function render(){
+    try { renderCheckin(); } catch(e){}
     if (state.view==="week") renderWeek();
     else if (state.view==="calendar") renderCalendar();
     else if (state.view==="reports") renderReports();
     else if (state.view==="incentives") renderIncentives();
+    else if (state.view==="attendance") renderAttendance();
     else renderIdeas();
   }
 
@@ -777,6 +789,8 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       {l:"On-ground activities", v:String(r.onGround), g:"na", sub:"talks, farm visits, expos logged"},
       ...r.people.map(pp=>({l:pp.id, v:`${pp.done} / ${pp.due}`, g:pp.due?grade(pp.done/pp.due,1,0.8):"na", sub:`${pp.open} still open of items due so far`})),
     ]});
+    if (isManager() && Object.keys(SHIFTS).length) secs.push({sec:"Attendance", rows: Object.keys(SHIFTS).map(email => { const sm = attSummary(email, r.s, r.upto, new Date());
+      return {l:nameFor(email)+" on time", v:pct(sm.rate), g:grade(sm.rate, CFG.attendanceOnTime, 0.9/0.95), sub:`${sm.ontime} of ${sm.workdays} work days · ${sm.late} late · ${sm.absent} absent · ${sm.leave} leave · target ${Math.round(CFG.attendanceOnTime*100)}% on time`}; })});
     return secs;
   }
 
@@ -1395,6 +1409,101 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
       canWrite ? el("button",{type:"button",class:"small",disabled:syncing,onclick:()=>platformSync(true)},"Check now") : null ];
   }
 
+  // ---------- attendance: check-in within 15 minutes of shift start ----------
+  // Shifts come from config.js (PA_SHIFTS). Check-in time is set by the server, so it can't be backdated.
+  const SHIFTS = Object.fromEntries(Object.entries(window.PA_SHIFTS || {}).map(([e,s])=>[String(e).toLowerCase(), { start:"08:00", grace:15, days:[1,2,3,4,5,6], ...s }]));
+  const MANAGERS = (window.PA_MANAGERS || ["jrsmanahan@gmail.com"]).map(e=>String(e).toLowerCase());
+  const isManager = () => !!me && (MANAGERS.includes(me) || isAdmin());
+  const hasShift = () => !!me && !!SHIFTS[me];
+  state.att = [];
+  const toDateAny = v => v && typeof v.toDate === "function" ? v.toDate() : v ? new Date(v) : null;
+  const mnlDate = d => d.toLocaleDateString("en-CA",{timeZone:"Asia/Manila"});
+  const mnlMins = d => { const [h,m] = d.toLocaleTimeString("en-GB",{timeZone:"Asia/Manila",hour:"2-digit",minute:"2-digit",hour12:false}).split(":").map(Number); return (h%24)*60+m; };
+  const hm = mins => { const h = Math.floor(mins/60), m = mins%60; return `${((h+11)%12)+1}:${pad(m)} ${h<12?"AM":"PM"}`; };
+  const toMins = s => { const [h,m] = String(s).split(":").map(Number); return h*60+(m||0); };
+  const nameFor = email => TEAM.find(t=>t.email===email)?.name || email;
+  // One person's day: off, holiday, leave, ontime, late, absent, pending, missed (today, past grace, not yet in)
+  function dayStatus(email, ds, nowDate){
+    const sh = SHIFTS[email]; if (!sh) return {s:"none"};
+    const today = mnlDate(nowDate);
+    if (ds > today) return {s:"future"};
+    const leave = state.att.find(a=>a.kind==="leave" && a.email===email && a.date===ds);
+    if (leave) return {s:"leave", note:leave.note||""};
+    const ins = state.att.filter(a=>a.kind==="checkin" && a.email===email && a.at && mnlDate(toDateAny(a.at))===ds).sort((a,b)=>toDateAny(a.at)-toDateAny(b.at));
+    if (ins.length) { const mins = mnlMins(toDateAny(ins[0].at)); return { s: mins <= toMins(sh.start)+sh.grace ? "ontime" : "late", mins, lateBy: Math.max(0, mins - toMins(sh.start)) }; }
+    if (HOLIDAYS[ds]) return {s:"holiday"};
+    if (!sh.days.includes(parse(ds).getDay())) return {s:"off"};
+    if (ds < today) return {s:"absent"};
+    return { s: mnlMins(nowDate) > toMins(sh.start)+sh.grace ? "missed" : "pending" };
+  }
+  function attSummary(email, s, e, nowDate){
+    const out = { workdays:0, ontime:0, late:0, absent:0, leave:0, lateMins:0 };
+    for (let d = parse(s); iso(d) <= e; d = addDays(d,1)) {
+      const st = dayStatus(email, iso(d), nowDate);
+      if (["ontime","late","absent"].includes(st.s)) out.workdays++;
+      if (st.s==="ontime") out.ontime++; if (st.s==="late") { out.late++; out.lateMins += st.lateBy; } if (st.s==="absent") out.absent++; if (st.s==="leave") out.leave++;
+    }
+    out.rate = out.workdays ? out.ontime/out.workdays : null;
+    return out;
+  }
+  // header button
+  function renderCheckin(){
+    const host = $("checkinHost"); if (!host) return;
+    if (!hasShift() || !db) { host.replaceChildren(); return; }
+    const st = dayStatus(me, mnlDate(new Date()), new Date()), sh = SHIFTS[me];
+    if (st.s==="ontime" || st.s==="late") { host.replaceChildren(el("span",{class:"ci "+(st.s==="ontime"?"ci-ok":"ci-late"),title:`Shift starts ${hm(toMins(sh.start))}; on time until ${hm(toMins(sh.start)+sh.grace)}`}, st.s==="ontime" ? `Checked in ${hm(st.mins)} ✓` : `Checked in ${hm(st.mins)} · late`)); return; }
+    if (st.s==="leave") { host.replaceChildren(el("span",{class:"ci"},"On leave today")); return; }
+    if (st.s==="off" || st.s==="holiday") { host.replaceChildren(); return; }
+    host.replaceChildren(el("button",{type:"button",class:"primary small ci-btn",id:"checkinBtn",onclick:checkIn}, st.s==="missed" ? "Check in (late)" : "Check in"));
+  }
+  async function checkIn(){
+    const btn = $("checkinBtn"); if (btn) btn.disabled = true;
+    const ds = mnlDate(new Date());
+    try {
+      await db.collection("attendance").doc(`${ds}_${me}`).set({ kind:"checkin", email:me, date:ds, at: firebase.firestore.FieldValue.serverTimestamp() });
+      toast("Checked in");
+    } catch(e) {
+      if (e && e.code==="permission-denied") toast("You've already checked in today, or check-in isn't set up for your account.");
+      else failed(e);
+      if (btn) btn.disabled = false;
+    }
+  }
+  // Attendance tab (Jacinto and Anne)
+  function renderAttendance(){
+    const host = $("v-attendance");
+    if (!isManager()) { host.replaceChildren(el("p",{class:"hint"},"Attendance is only available to Jacinto and Anne.")); return; }
+    const people = Object.keys(SHIFTS);
+    if (!people.length) { host.replaceChildren(el("p",{class:"hint"},"Add the team's shifts to config.js (PA_SHIFTS) to start tracking attendance.")); return; }
+    if (!state.attMonth) state.attMonth = ym(new Date());
+    const k = state.attMonth, m0 = parse(k+"-01"), mEnd = iso(addDays(addMonths(m0,1),-1)), now = new Date();
+    const monthSel = el("select",{style:"width:auto","aria-label":"Month"}, periods().filter(p=>p.kind==="month").map(p=>el("option",{value:ym(p.start),selected:ym(p.start)===k}, monthName(p.start))));
+    monthSel.onchange = () => { state.attMonth = monthSel.value; renderAttendance(); };
+    const cell = (email, ds) => {
+      const st = dayStatus(email, ds, now);
+      const txt = { ontime:hm(st.mins||0), late:`${hm(st.mins||0)}`, absent:"Absent", leave:"Leave", holiday:"Holiday", off:"", future:"", pending:"—", missed:"Not in" }[st.s] ?? "";
+      const td = el("td",{class:"att att-"+st.s, title: st.s==="late" ? `${st.lateBy} min after shift start` : st.s==="leave" ? (st.note||"On leave") : ""}, txt);
+      if (canWrite && (st.s==="absent" || st.s==="missed" || st.s==="late")) td.append(el("button",{type:"button",class:"linkbtn att-act",onclick:()=>markLeave(email, ds)},"Leave"));
+      if (canWrite && st.s==="leave") td.append(el("button",{type:"button",class:"linkbtn att-act",onclick:()=>undoLeave(email, ds)},"Undo"));
+      return td;
+    };
+    const days = []; for (let d = m0; iso(d) <= mEnd; d = addDays(d,1)) days.push(iso(d));
+    host.replaceChildren(
+      el("div",{class:"bar"}, el("h2",{class:"sec"},"Attendance"), el("div",{class:"weeknav"}, monthSel)),
+      el("p",{class:"hint",style:"margin:0"}, `Check in through the planner within ${Object.values(SHIFTS)[0].grace} minutes of shift start. The time is set by the server and can't be changed. Late check-ins and absences can be marked as leave when excused.`),
+      el("div",{class:"stats"}, people.map(email => { const sm = attSummary(email, iso(m0), mEnd, now), sh = SHIFTS[email];
+        return el("div",{class:"stat"}, el("span",{class:"eyebrow"}, nameFor(email)), el("b",{}, sm.rate==null?"—":pct(sm.rate)), el("small",{}, `on time · ${sm.ontime} of ${sm.workdays} work days`),
+          el("small",{}, `${sm.late} late${sm.late?` (avg ${Math.round(sm.lateMins/sm.late)} min)`:""} · ${sm.absent} absent · ${sm.leave} leave`), el("small",{}, `Shift ${hm(toMins(sh.start))}, ${sh.days.map(d=>DOW[d]).join(" ")}`)); })),
+      el("div",{class:"tablewrap"}, el("table",{},
+        el("thead",{}, el("tr",{}, el("th",{},"Date"), ...people.map(e=>el("th",{}, nameFor(e))))),
+        el("tbody",{}, days.filter(ds=>ds<=mnlDate(now)).reverse().map(ds => el("tr",{class:HOLIDAYS[ds]?"hol":""}, el("td",{style:"white-space:nowrap"}, `${DOW[parse(ds).getDay()]} ${short(ds)}`, HOLIDAYS[ds]?el("div",{class:"hint"},HOLIDAYS[ds]):null), ...people.map(e=>cell(e, ds))))))));
+  }
+  async function markLeave(email, ds){
+    try { await db.collection("attendance").doc(`leave_${ds}_${email}`).set({ kind:"leave", email, date:ds, note:"Marked by "+(nameFor(me)), at: firebase.firestore.FieldValue.serverTimestamp(), by:me }); toast("Marked as leave"); } catch(e){ failed(e); }
+  }
+  async function undoLeave(email, ds){
+    try { await db.collection("attendance").doc(`leave_${ds}_${email}`).delete(); toast("Leave removed"); } catch(e){ failed(e); }
+  }
+
   setView(state.view);
 
   // ---------- data (Firebase) ----------
@@ -1423,6 +1532,7 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
       state.loaded = true; render();
     }, e => { clearTimeout(timer); state.loaded = true;
       showNotice(e.code==="permission-denied" ? "Your account isn't on the planner's team list yet. Ask Jacinto to add your email." : "The planner stopped updating. Reload the page to reconnect."); render(); });
+    const subQ = (q, key) => q.onSnapshot(snap => { state[key] = snap.docs.map(d=>({id:d.id, ...d.data()})); render(); }, () => {});
     unsubs = [
       sub("activities","items", docs => docs.map(d=>{ const x=normPost({id:d.id, ...d.data()}); x.segment=normSeg(x.segment); return x; })),
       sub("bank","bank", docs => docs.map(d=>{ const x={id:d.id, ...d.data()}; x.segment=normSeg(x.segment); return x; })),
@@ -1430,6 +1540,7 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
       sub("kpis","kpis", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
       sub("reference","reference", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
       ...(isAdmin() ? [sub("incentives","inc", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()])))] : []),
+      ...(isManager() ? [subQ(db.collection("attendance"), "att")] : hasShift() ? [subQ(db.collection("attendance").where("email","==",me), "att")] : []),
     ];
   }
   const cfgOk = window.PA_FIREBASE_CONFIG && !String(window.PA_FIREBASE_CONFIG.apiKey||"").startsWith("PASTE");
@@ -1446,6 +1557,8 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
       $("login").hidden = true; $("app").hidden = false;
       nameOf(me).then(n => $("whoName").textContent = n);
       $("t-incentives").hidden = !isAdmin(); if (!isAdmin() && state.view==="incentives") setView("week");
+      $("t-attendance").hidden = !isManager(); if (!isManager() && state.view==="attendance") setView("week");
+      clearInterval(state.ciTimer); state.ciTimer = setInterval(renderCheckin, 60e3);
       crmCheck().catch(()=>{});
       start();
     });
