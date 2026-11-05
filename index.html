@@ -70,6 +70,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .meter{height:6px;background:var(--sunk);border-radius:4px;overflow:hidden}
 .meter i{display:block;height:100%;background:var(--brand)}
 .meter i.full{background:var(--ok)}
+.stat.plat{gap:8px}
+.prow{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:baseline}
+.prow .pl{font-weight:600;font-size:13px}
+.prow .pv{font-family:var(--f-display);font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
+.prow .meter{grid-column:1/-1}
+.prow small{grid-column:1/-1;color:var(--muted);font-size:11.5px}
+.sync-ok{color:var(--ok)} .sync-off{color:var(--muted)} .sync-err{color:var(--red)}
 .main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
 @media (max-width:1060px){.main{grid-template-columns:minmax(0,1fr)}}
 .board{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
@@ -235,6 +242,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       </div>
     </div>
     <section class="stats" id="stats" aria-label="This week at a glance"></section>
+    <div id="syncLine" class="bar" style="justify-content:flex-start;gap:6px 12px;font-size:12.5px;color:var(--muted);margin-top:-6px"></div>
     <div class="main">
       <section class="board" id="board" aria-label="Week board"></section>
       <aside class="rail">
@@ -349,7 +357,18 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     </label>
     <label class="full post-only">CTA<input id="f-cta" maxlength="120"></label>
     <label class="full post-only">Caption<textarea id="f-caption" maxlength="6000" style="min-height:110px"></textarea></label>
-    <label class="full post-only">Post link<input id="f-link" maxlength="400" placeholder="https://www.facebook.com/…"></label>
+    <fieldset class="full post-only" id="f-platforms" style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:0;display:grid;gap:8px">
+      <legend style="font-size:12.5px;font-weight:600;color:var(--muted);padding:0 4px">Platforms</legend>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <label style="display:flex;gap:6px;align-items:center;color:var(--fg)"><input type="checkbox" id="f-pl-facebook" style="width:auto"> Facebook</label>
+        <label style="display:flex;gap:6px;align-items:center;color:var(--fg)"><input type="checkbox" id="f-pl-youtube" style="width:auto"> YouTube</label>
+        <label style="display:flex;gap:6px;align-items:center;color:var(--fg)"><input type="checkbox" id="f-pl-linkedin" style="width:auto"> LinkedIn</label>
+      </div>
+      <label id="lw-facebook">Facebook link<input id="f-link" maxlength="400" placeholder="https://www.facebook.com/…"></label>
+      <label id="lw-youtube">YouTube link<input id="f-link-youtube" maxlength="400" placeholder="https://www.youtube.com/watch?v=…"></label>
+      <label id="lw-linkedin">LinkedIn link<input id="f-link-linkedin" maxlength="400" placeholder="https://www.linkedin.com/…"></label>
+      <p class="hint" id="f-pl-hint" style="margin:0"></p>
+    </fieldset>
     <label class="post-only">Views<input type="number" min="0" id="f-views" inputmode="numeric"></label>
     <label class="post-only">Engagement<input type="number" min="0" id="f-eng" inputmode="numeric" placeholder="reactions + comments + shares"></label>
     <label class="full nonpost">Location<input id="f-where" maxlength="300" placeholder="Farm, venue or address"></label>
@@ -390,7 +409,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     trialStart: "2026-11-01",
     reelsPerWeek: 2, photosPerWeek: 2, breederShare: 0.70,
     // Marketing Services Agreement, Oct 22 2026
-    reelsPerMonth: 8, photosPerMonth: 8, ytPerMonth: 2, postsPerMonth: 16, linkedinPerWeek: 1, onSchedule: 0.90,
+    reelsPerMonth: 8, photosPerMonth: 8, ytPerMonth: 2, postsPerMonth: 16, linkedinPerWeek: 1, syncSince: "2026-10-29", onSchedule: 0.90,
     baseline: { followers: 5300, viewsPerMonth: 39000, engagementPerMonth: 1700 },
     followersGain90: 900, viewsPerMonth: 100000, engagementPerMonth: 4000, ytSubsGain90: 150,
     payout: { signed: "2026-10-22", firstMonths: 6, thenMonths: 3 },
@@ -412,7 +431,22 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     {id:"Christian", role:"A-roll, editing", c:"--c-christian"},
     {id:"Yuan", role:"B-roll, drone", c:"--c-yuan"},
   ];
-  const POST_TYPES = ["Reel post","Photo post","YouTube video","LinkedIn post"];
+  // Post formats, and the platforms each one can go to (long-form always goes to YouTube and Facebook)
+  const POST_TYPES = ["Reel post","Photo post","Long-form video"];
+  const PLATFORMS = [{k:"facebook",l:"Facebook",ab:"FB"},{k:"youtube",l:"YouTube",ab:"YT"},{k:"linkedin",l:"LinkedIn",ab:"LI"}];
+  const ALLOWED_PLATFORMS = {"Reel post":["facebook"], "Photo post":["facebook","linkedin"], "Long-form video":["youtube","facebook"]};
+  const DEFAULT_PLATFORMS = {"Reel post":["facebook"], "Photo post":["facebook"], "Long-form video":["youtube","facebook"]};
+  const fmtLabel = t => t==="Reel post" ? "Reel" : t==="Photo post" ? "Photo" : t==="Long-form video" ? "Long-form" : t;
+  const platformsOf = p => Array.isArray(p.platforms) && p.platforms.length ? p.platforms : (DEFAULT_PLATFORMS[p.type] || []);
+  const onPlat = (p, k) => platformsOf(p).includes(k);
+  const platAbbr = p => platformsOf(p).map(k=>PLATFORMS.find(x=>x.k===k)?.ab).filter(Boolean).join(" · ");
+  // older records: "YouTube video" → long-form; "LinkedIn post" → photo on LinkedIn; single link → Facebook link
+  function normPost(x){
+    if (x.type==="YouTube video") { x.type = "Long-form video"; if (!x.platforms) x.platforms = ["youtube","facebook"]; if (!x.links && x.link) x.links = { youtube:x.link }; }
+    if (x.type==="LinkedIn post") { x.type = "Photo post"; if (!x.platforms) x.platforms = ["linkedin"]; if (!x.links && x.link) x.links = { linkedin:x.link }; }
+    if (POST_TYPES.includes(x.type)) { if (!x.links) x.links = x.link ? { facebook:x.link } : {}; }
+    return x;
+  }
   const TYPES = [...POST_TYPES,"Shoot","Edit","Write-up / SEO","Website / LinkedIn","On-ground activity","Inquiry follow-up","Meeting","Training","Admin"];
   const STATUSES = ["todo","doing","review","approved","scheduled","done"];
   const label = (s, isPost) => ({todo:"Not started",doing:isPost?"Editing":"In progress",review:"For approval",approved:"Approved",scheduled:"Scheduled",done:isPost?"Posted":"Done"})[s] || s;
@@ -503,7 +537,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       el("span",{class:"meta"},
         showDate ? el("span",{class:"time"}, short(it.date)) : null,
         it.time ? el("span",{class:"time"}, fmtTime(it.time)) : null,
-        el("span",{class:"type"}, it.type), el("span",{}, it.owner)),
+        el("span",{class:"type"}, isPost(it) ? fmtLabel(it.type) : it.type), isPost(it) ? el("span",{}, platAbbr(it)) : null, el("span",{}, it.owner)),
       el("span",{class:"meta"}, el("span",{class:"st st-"+it.status}, label(it.status,isPost(it))), it.segment ? el("span",{class:"seg"}, it.segment) : null, it.needsDocJorge && !published(it) ? el("span",{class:"seg",style:"color:var(--red)"},"Doc Jorge") : null));
     return c;
   }
@@ -518,12 +552,21 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const s = iso(wk), e = iso(end), today = todayISO();
     const inWeek = state.items.filter(it => it.date>=s && it.date<=e);
     const mine = inWeek.filter(visible);
-    const reels = inWeek.filter(i=>i.type==="Reel post"), photos = inWeek.filter(i=>i.type==="Photo post"), lnk = inWeek.filter(i=>i.type==="LinkedIn post");
+    const wp = (t, k) => inWeek.filter(i=>i.type===t && onPlat(i,k));
+    const fbReels = wp("Reel post","facebook"), fbPhotos = wp("Photo post","facebook"), fbLong = wp("Long-form video","facebook"), ytLong = wp("Long-form video","youtube");
+    const liPhotos = inWeek.filter(i=>isPost(i) && onPlat(i,"linkedin"));
+    const mk = ym(wk), ytMonth = state.items.filter(i=>i.type==="Long-form video" && onPlat(i,"youtube") && i.date.startsWith(mk));
     const meter = (n,goal) => { const i=el("i",{style:`width:${Math.min(100,Math.round(n/goal*100))}%`}); if(n>=goal) i.className="full"; return el("div",{class:"meter"},i); };
+    const prow = (lab, list, goal, note) => { const n = list.filter(published).length;
+      return el("div",{class:"prow"}, el("span",{class:"pl"}, lab), el("span",{class:"pv"}, goal!=null ? `${n} / ${goal}` : String(n)), goal!=null ? meter(n, goal) : null, el("small",{}, note ?? `${list.length} planned`)); };
+    $("syncLine").replaceChildren(...syncLine().filter(Boolean));
     $("stats").replaceChildren(
-      el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Reels this week"), el("b",{}, `${reels.filter(published).length} / ${CFG.reelsPerWeek}`), meter(reels.filter(published).length,CFG.reelsPerWeek), el("small",{}, `${reels.length} planned · target ${CFG.reelsPerWeek} a week`)),
-      el("div",{class:"stat"}, el("span",{class:"eyebrow"},"LinkedIn this week"), el("b",{}, `${lnk.filter(published).length} / ${CFG.linkedinPerWeek}`), meter(lnk.filter(published).length,CFG.linkedinPerWeek), el("small",{}, `${lnk.length} planned · target ${CFG.linkedinPerWeek} a week`)),
-      el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Photo posts this week"), el("b",{}, `${photos.filter(published).length} / ${CFG.photosPerWeek}`), meter(photos.filter(published).length,CFG.photosPerWeek), el("small",{}, `${photos.length} planned · target ${CFG.photosPerWeek} a week`)),
+      el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"Facebook this week"),
+        prow("Reels", fbReels, CFG.reelsPerWeek), prow("Photos", fbPhotos, CFG.photosPerWeek), prow("Long-form", fbLong, null, "same videos as YouTube")),
+      el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"YouTube"),
+        prow("Long-form this week", ytLong, null, `${ytLong.length} planned`), prow(`Long-form in ${monthName(wk,{month:"long"})}`, ytMonth, CFG.ytPerMonth, `target ${CFG.ytPerMonth} a month`)),
+      el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"LinkedIn this week"),
+        prow("Photos", liPhotos, CFG.linkedinPerWeek)),
       el("div",{class:"stat"}, el("span",{class:"eyebrow"}, state.who==="All"?"Team activities":`${state.who}'s activities`), el("b",{}, String(mine.length)), el("small",{}, `${mine.filter(published).length} done · ${mine.filter(i=>!published(i)).length} open`)),
       el("div",{class:"stat"}, el("span",{class:"eyebrow"},"On-ground this week"), el("b",{}, String(inWeek.filter(i=>i.type==="On-ground activity").length)), el("small",{},"Every on-ground activity = a marketing asset")));
     const board = $("board"); board.replaceChildren();
@@ -557,9 +600,9 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       g.append(el("div",{class:`mcell${inMonth?"":" out"}${ds===today?" today":""}${HOLIDAYS[ds]&&inMonth?" hol":""}${dayPosts.length?"":" nopost"}`},
         el("div",{class:"mday"}, el("b",{}, String(d.getDate())), el("span",{class:"wd"}, d.toLocaleDateString("en-US",{weekday:"short", month:"short"})), inMonth && d.getDay()===0 ? el("span",{class:"hint",style:"font-size:10.5px"},"W"+weekNo(ds)) : null),
         HOLIDAYS[ds] && inMonth ? el("div",{class:"mhol"}, HOLIDAYS[ds]) : null,
-        dayPosts.map(p => el("button",{type:"button", class:`pchip ${segClass(p.segment)}${published(p)?" live":""}`, onclick:()=>openForm(p), title:`${p.type} · ${p.segment||"No segment"} · ${label(p.status,true)}`},
+        dayPosts.map(p => el("button",{type:"button", class:`pchip ${segClass(p.segment)}${published(p)?" live":""}`, onclick:()=>openForm(p), title:`${fmtLabel(p.type)} on ${platformsOf(p).map(k=>PLATFORMS.find(x=>x.k===k).l).join(", ")} · ${p.segment||"No segment"} · ${label(p.status,true)}`},
           el("span",{class:"pt"+(p.title?"":" tbd")}, p.title || "Topic not picked yet"),
-          el("span",{class:"pm"}, el("span",{class:"type"}, p.type.replace(" post","").replace(" video","")), el("span",{class:"st st-"+p.status}, label(p.status,true)), p.needsDocJorge && !published(p) ? el("span",{style:"color:var(--red);font-weight:600"},"Doc Jorge") : null))),
+          el("span",{class:"pm"}, el("span",{class:"type"}, fmtLabel(p.type)), el("span",{}, platAbbr(p)), el("span",{class:"st st-"+p.status}, label(p.status,true)), p.needsDocJorge && !published(p) ? el("span",{style:"color:var(--red);font-weight:600"},"Doc Jorge") : null))),
         inMonth && canWrite ? el("button",{type:"button",class:"madd","aria-label":"Add a post on "+ds, onclick:()=>openForm(null,{type:"Reel post",owner:"Anne",segment:"Breeder",date:ds})},"+ Post") : null));
     }
   }
@@ -571,7 +614,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const subs = [...SEGMENTS.filter(isBroiler), LEGACY_BROILER].map(s=>[s, reg.filter(p=>p.segment===s).length]).filter(([s,n])=>n||s!==LEGACY_BROILER);
     $("calSum").replaceChildren(
       el("span",{},"Posts ", el("b",{},posts.length)), el("span",{},"Reels ", el("b",{},posts.filter(p=>p.type==="Reel post").length)),
-      el("span",{},"Photos ", el("b",{},posts.filter(p=>p.type==="Photo post").length)), el("span",{},"LinkedIn ", el("b",{},posts.filter(p=>p.type==="LinkedIn post").length)), el("span",{},"Breeder ", el("b",{},br.length)),
+      el("span",{},"Photos ", el("b",{},posts.filter(p=>p.type==="Photo post").length)), el("span",{},"Long-form ", el("b",{},posts.filter(p=>p.type==="Long-form video").length)), el("span",{},"On LinkedIn ", el("b",{},posts.filter(p=>onPlat(p,"linkedin")).length)), el("span",{},"Breeder ", el("b",{},br.length)),
       el("span",{},"All broiler ", el("b",{},reg.filter(p=>isBroiler(p.segment)).length)), ...subs.map(([s,n])=>el("span",{},s.replace("Broiler - ","↳ ")+" ", el("b",{},n))), el("span",{},"All Audiences ", el("b",{},posts.length-reg.length)), el("span",{},"Holiday ", el("b",{},posts.filter(isHolidayPost).length)),
       el("span",{},"Breeder share of regular posts ", el("b",{}, reg.length?pct(br.length/reg.length):"—")),
       el("span",{},"Posted ", el("b",{}, posts.filter(published).length)));
@@ -592,7 +635,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
         el("td",{class:"wide"}, p.title || el("span",{class:"hint"},"Topic not picked yet")),
         el("td",{class:"hint"}, p.cta||""),
         el("td",{}, el("span",{class:"st st-"+p.status}, label(p.status,true))),
-        el("td",{class:"linkcell",style:"white-space:nowrap"}, p.link ? el("a",{href:p.link,target:"_blank",rel:"noopener",onclick:e=>e.stopPropagation()},"Post") : "", p.capcutLink ? [" · ", el("a",{href:p.capcutLink,target:"_blank",rel:"noopener",onclick:e=>e.stopPropagation()},"CapCut")] : "", p.driveLink ? [" · ", el("a",{href:p.driveLink,target:"_blank",rel:"noopener",onclick:e=>e.stopPropagation()},"Drive")] : ""),
+        el("td",{class:"linkcell",style:"white-space:nowrap"}, PLATFORMS.filter(x=>p.links?.[x.k]).map((x,i)=>[i?" · ":"", el("a",{href:p.links[x.k],target:"_blank",rel:"noopener",onclick:e=>e.stopPropagation()},x.ab)]), p.capcutLink ? [" · ", el("a",{href:p.capcutLink,target:"_blank",rel:"noopener",onclick:e=>e.stopPropagation()},"CapCut")] : "", p.driveLink ? [" · ", el("a",{href:p.driveLink,target:"_blank",rel:"noopener",onclick:e=>e.stopPropagation()},"Drive")] : ""),
         el("td",{class:"num"}, p.views!=null&&p.views!==""?fmtN(p.views):""),
         el("td",{class:"num"}, p.engagement!=null&&p.engagement!==""?fmtN(p.engagement):"")));
     }
@@ -655,7 +698,11 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const inquiries = sum("inquiries"), answered = sum("answered24");
     const people = PEOPLE.map(pp => { const mine = inP.filter(x=>(x.owner===pp.id || x.owner===WHOLE_TEAM) && x.date<=upto); const done = mine.filter(published).length; return {id:pp.id, due:mine.length, done, open:mine.length-done}; });
     const r = { p, s, e, upto, months, planned:posts.length, due:due.length, pub:pub.length, regPub:regPub.length,
-      reels:cnt("Reel post"), photos:cnt("Photo post"), yt:cnt("YouTube video"), linkedin:pub.filter(x=>x.type==="LinkedIn post").length,
+      reels:pub.filter(x=>x.type==="Reel post" && onPlat(x,"facebook") && !isHolidayPost(x)).length,
+      photos:pub.filter(x=>x.type==="Photo post" && onPlat(x,"facebook") && !isHolidayPost(x)).length,
+      yt:pub.filter(x=>x.type==="Long-form video" && onPlat(x,"youtube")).length,
+      fbLong:pub.filter(x=>x.type==="Long-form video" && onPlat(x,"facebook")).length,
+      linkedin:pub.filter(x=>onPlat(x,"linkedin")).length,
       linkedinTarget: Math.round(((addMonths(p.start,p.months)-p.start)/864e5)/7*CFG.linkedinPerWeek),
       linkedinDue: Math.max(0, Math.floor(((parse(upto)-p.start)/864e5+1)/7)*CFG.linkedinPerWeek), holiday:pub.length-regPub.length,
       breederShare: reg.length? br/reg.length : null, regular:reg.length, broilerMix,
@@ -696,10 +743,10 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     }
     secs.push({sec:"Output vs agreement", rows:[
       {l:"Facebook posts published (excl. holidays)", v:`${r.reels+r.photos} / ${CFG.postsPerMonth*M}`, g:grade(r.reels+r.photos, CFG.postsPerMonth*M, 0.85), sub:`target ${CFG.postsPerMonth} a month · ${r.planned} posts on the calendar, ${r.due} due so far`},
-      {l:"Reels", v:`${r.reels} / ${CFG.reelsPerMonth*M}`, g:grade(r.reels, CFG.reelsPerMonth*M, 0.85), sub:`${CFG.reelsPerMonth} a month (2 a week)`},
-      {l:"Photo posts", v:`${r.photos} / ${CFG.photosPerMonth*M}`, g:grade(r.photos, CFG.photosPerMonth*M, 0.85), sub:`${CFG.photosPerMonth} a month (2 a week)`},
-      {l:"Long-form YouTube videos", v:`${r.yt} / ${CFG.ytPerMonth*M}`, g:grade(r.yt, CFG.ytPerMonth*M, 0.5), sub:`${CFG.ytPerMonth} a month`},
-      {l:"LinkedIn posts", v:`${r.linkedin} / ${r.linkedinTarget}`, g:r.linkedinDue ? grade(r.linkedin, r.linkedinDue, 0.75) : "na", sub:`${CFG.linkedinPerWeek} a week · ${r.linkedinDue} due so far`},
+      {l:"Facebook reels", v:`${r.reels} / ${CFG.reelsPerMonth*M}`, g:grade(r.reels, CFG.reelsPerMonth*M, 0.85), sub:`${CFG.reelsPerMonth} a month (2 a week)`},
+      {l:"Facebook photos", v:`${r.photos} / ${CFG.photosPerMonth*M}`, g:grade(r.photos, CFG.photosPerMonth*M, 0.85), sub:`${CFG.photosPerMonth} a month (2 a week)`},
+      {l:"YouTube long-form", v:`${r.yt} / ${CFG.ytPerMonth*M}`, g:grade(r.yt, CFG.ytPerMonth*M, 0.5), sub:`${CFG.ytPerMonth} a month · ${r.fbLong} also on Facebook`},
+      {l:"LinkedIn photos", v:`${r.linkedin} / ${r.linkedinTarget}`, g:r.linkedinDue ? grade(r.linkedin, r.linkedinDue, 0.75) : "na", sub:`${CFG.linkedinPerWeek} a week · ${r.linkedinDue} due so far`},
       {l:"Holiday posts", v:String(r.holiday), g:"na", sub:"Free, on top of the weekly output"},
       {l:"Published on schedule", v:pct(r.onSchedule), g:grade(r.onSchedule, CFG.onSchedule, 0.89), sub:"of posts due so far · Day 90 target 90%"},
       {l:"Breeder share", v:pct(r.breederShare), g:r.breederShare==null?"na":(Math.abs(r.breederShare-CFG.breederShare)<=0.08?"ok":Math.abs(r.breederShare-CFG.breederShare)<=0.15?"warn":"bad"), sub:`of ${r.regular} regular posts · plan 70 breeder / 30 broiler${r.broilerMix.length?" · broiler: "+r.broilerMix.map(([s,n])=>`${s.replace("Broiler - ","")} ${n}`).join(", "):""}`},
@@ -832,7 +879,19 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   $("f-type").append(...TYPES.map(t=>el("option",{value:t},t)));
   $("f-owner").append(...PEOPLE.map(p=>el("option",{value:p.id},`${p.id} · ${p.role}`)), el("option",{value:WHOLE_TEAM},"Whole team · everyone"));
   function fillStatuses(post, cur){ $("f-status").replaceChildren(...STATUSES.map(s=>el("option",{value:s},label(s,post)))); $("f-status").value = cur||"todo"; }
-  function togglePost(){ const t=$("f-type").value, post = POST_TYPES.includes(t); document.querySelectorAll(".post-only").forEach(x=>x.hidden=!post); document.querySelectorAll(".nonpost").forEach(x=>x.hidden=post); if (t==="Edit") { $("f-rev").closest("label").hidden=false; } $("f-capcut").closest("label").hidden = !(post || t==="Edit"); fillStatuses(post, $("f-status").value); }
+  function syncPlatformBoxes(resetDefaults){
+    const t = $("f-type").value, allowed = ALLOWED_PLATFORMS[t] || [];
+    for (const {k} of PLATFORMS) {
+      const box = $("f-pl-"+k);
+      if (resetDefaults || t==="Long-form video") box.checked = (DEFAULT_PLATFORMS[t]||[]).includes(k);
+      if (!allowed.includes(k)) box.checked = false;
+      box.disabled = !canWrite || !allowed.includes(k) || t==="Long-form video";
+      $("lw-"+k).hidden = !box.checked;
+    }
+    $("f-pl-hint").textContent = t==="Long-form video" ? "Long-form always goes on YouTube and Facebook." : t==="Reel post" ? "Reels go on Facebook." : "Tick LinkedIn to post the photo there too.";
+  }
+  for (const {k} of PLATFORMS) $("f-pl-"+k).addEventListener("change", () => syncPlatformBoxes(false));
+  function togglePost(){ const t=$("f-type").value, post = POST_TYPES.includes(t); if (post) syncPlatformBoxes(true); document.querySelectorAll(".post-only").forEach(x=>x.hidden=!post); document.querySelectorAll(".nonpost").forEach(x=>x.hidden=post); if (t==="Edit") { $("f-rev").closest("label").hidden=false; } $("f-capcut").closest("label").hidden = !(post || t==="Edit"); fillStatuses(post, $("f-status").value); }
   $("f-type").onchange = togglePost;
   $("b-seg").append(...SEGMENTS.map(s=>el("option",{value:s},s)));
   function fillSegs(cur){
@@ -853,13 +912,16 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     $("f-time").value = v.time || "";
     fillSegs(v.segment || "");
     $("f-cta").value = v.cta ?? ctaFor(v.segment);
-    $("f-caption").value = v.caption || ""; $("f-link").value = v.link || "";
+    $("f-caption").value = v.caption || "";
+    const links = v.links || (v.link ? {facebook:v.link} : {});
+    $("f-link").value = links.facebook || ""; $("f-link-youtube").value = links.youtube || ""; $("f-link-linkedin").value = links.linkedin || "";
     $("f-views").value = v.views ?? ""; $("f-eng").value = v.engagement ?? "";
     $("f-where").value = v.where || ""; $("f-notes").value = v.notes || "";
     $("f-drive").value = v.driveLink || ""; $("f-capcut").value = v.capcutLink || "";
     $("f-rev").value = v.revisions ?? ""; $("f-dj").checked = !!v.needsDocJorge;
     $("f-repeat").value = "1"; $("repeatWrap").hidden = !!it;
     fillStatuses(POST_TYPES.includes($("f-type").value), v.status||"todo"); togglePost(); $("f-status").value = v.status||"todo";
+    if (POST_TYPES.includes($("f-type").value)) { const pl = platformsOf(v); for (const {k} of PLATFORMS) $("f-pl-"+k).checked = pl.includes(k); syncPlatformBoxes(false); }
     $("editedBy").textContent = "";
     if (it && it.updatedBy) nameOf(it.updatedBy).then(n => { if (editing===it) $("editedBy").textContent = `Last edited by ${n}${it.updatedAt?", "+when(it.updatedAt):""}`; });
     else if (it && it.source==="excel" && !it.updatedAt) $("editedBy").textContent = "Imported from the Excel tracker on Nov 4, 2026";
@@ -876,12 +938,15 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const type = $("f-type").value, post = POST_TYPES.includes(type);
     const title = $("f-title").value.trim(), date = $("f-date").value;
     if (!title && !post) { $("f-title").focus(); toast("Describe the activity in a few words"); return; }
+    if (post && !PLATFORMS.some(x=>$("f-pl-"+x.k).checked)) { toast("Tick at least one platform"); return; }
     if (!date) { $("f-date").focus(); toast("Pick a date"); return; }
     const num = id => { const v=$(id).value; return v===""?null:Math.max(0,Number(v)); };
     const status = $("f-status").value;
     const body = { title, type, owner:$("f-owner").value, date, time:$("f-time").value, status, segment:$("f-seg").value, notes:$("f-notes").value.trim(),
       revisions: num("f-rev"), needsDocJorge: $("f-dj").checked, driveLink:$("f-drive").value.trim(), capcutLink:$("f-capcut").value.trim(),
-      ...(post ? { cta:$("f-cta").value.trim(), caption:$("f-caption").value.trim(), link:$("f-link").value.trim(), views:num("f-views"), engagement:num("f-eng") } : { where:$("f-where").value.trim() }) };
+      ...(post ? { cta:$("f-cta").value.trim(), caption:$("f-caption").value.trim(), link:$("f-link").value.trim(),
+        platforms: PLATFORMS.map(x=>x.k).filter(k=>$("f-pl-"+k).checked),
+        links: { ...(editing?.links||{}), facebook:$("f-link").value.trim(), youtube:$("f-link-youtube").value.trim(), linkedin:$("f-link-linkedin").value.trim() }, views:num("f-views"), engagement:num("f-eng") } : { where:$("f-where").value.trim() }) };
     $("saveBtn").disabled = true;
     try {
       const col = db.collection("activities");
@@ -939,8 +1004,8 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   $("exportBtn").onclick = async () => {
     if (!window.XLSX) { toast("The Excel export library didn't load. Reload the page and try again."); return; }
     const byDate = (a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0);
-    const posts = state.items.filter(isPost).sort(byDate).map(p => ({ Week:"Week "+weekNo(p.date), Date:p.date, Day:DOW[parse(p.date).getDay()], Format:p.type.replace(" post",""),
-      "Target Segment":p.segment||"", Topic:p.title||"", CTA:p.cta||"", Caption:p.caption||"", Status:label(p.status,true), Notes:p.notes||"", "Post Link":p.link||"",
+    const posts = state.items.filter(isPost).sort(byDate).map(p => ({ Week:"Week "+weekNo(p.date), Date:p.date, Day:DOW[parse(p.date).getDay()], Format:fmtLabel(p.type), Platforms:platformsOf(p).map(k=>PLATFORMS.find(x=>x.k===k).l).join(", "),
+      "Target Segment":p.segment||"", Topic:p.title||"", CTA:p.cta||"", Caption:p.caption||"", Status:label(p.status,true), Notes:p.notes||"", "Facebook link":p.links?.facebook||"", "YouTube link":p.links?.youtube||"", "LinkedIn link":p.links?.linkedin||"",
       Views:p.views??"", Engagement:p.engagement??"" }));
     const acts = state.items.filter(i=>!isPost(i)).sort(byDate).map(a => ({ Date:a.date, Time:a.time||"", Type:a.type, Activity:a.title||"", Who:a.owner, Status:label(a.status,false), Segment:a.segment||"", "Location / link":a.where||"", Notes:a.notes||"" }));
     const bank = state.bank.slice().sort((a,b)=>(a.n||999)-(b.n||999)).map(b => ({ "#":b.n, "Content Idea":b.idea, "Audience Segment":b.segment, "Post Type":b.pillar, "Ideal Month":b.month, Notes:b.notes, Status:b.status }));
@@ -1248,6 +1313,86 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
   // Closed Inbound deals, for deal bonuses in the Incentives tab
   const crmClosedDeals = () => state.crmDeals.filter(d=>d.stage==="Closed Sale").map(d=>({ id:"crm-"+d.id, client:d.client||d.farm||"CRM deal", contractDate:d.won_date||reachedOn(d,"Closed Sale")||"", leadBy:"", amount:CFG.dealBonus, fromCrm:true }));
 
+  // ---------- platform sync: reads what was published on YouTube and Facebook, marks calendar posts Posted ----------
+  // Runs in whichever team member's browser opens the planner first, at most every 3 hours (or on "Check now").
+  const SYNC_EVERY = 3*3600e3;
+  const manilaDate = isoStr => new Date(isoStr).toLocaleDateString("en-CA",{timeZone:"Asia/Manila"});
+  const dayGap = (a,b) => Math.round((parse(a)-parse(b))/864e5);
+  const FORMAT_OF = { "youtube:longform":"Long-form video", "facebook:reel":"Reel post", "facebook:photo":"Photo post", "facebook:video":"Long-form video" };
+  // Match each published item to one calendar post; returns the writes to make. Pure, so it can be tested.
+  function planPlatformWrites(items, posts, now){
+    const pool = posts.filter(isPost).map(p=>({...p, links:{...(p.links||{})}, ext:{...(p.ext||{})}, platforms:platformsOf(p)}));
+    const known = new Set(); pool.forEach(p=>Object.entries(p.ext).forEach(([k,id])=>known.add(k+":"+id)));
+    const writes = [];
+    const sorted = items.slice().sort((a,b)=>String(a.at).localeCompare(String(b.at)));
+    for (const it of sorted) {
+      const type = FORMAT_OF[it.platform+":"+it.format]; if (!type) continue;
+      if (known.has(it.platform+":"+it.id)) continue;
+      const d = manilaDate(it.at);
+      const cands = pool.filter(p => p.type===type && p.platforms.includes(it.platform) && !p.ext[it.platform] && Math.abs(dayGap(p.date,d))<=1)
+        .sort((a,b)=>Math.abs(dayGap(a.date,d))-Math.abs(dayGap(b.date,d)) || (a.createdAt||0)-(b.createdAt||0));
+      const m = cands[0];
+      if (m) {
+        m.ext[it.platform] = it.id; m.links[it.platform] = m.links[it.platform] || it.url;
+        const upd = { ext:{...m.ext}, links:{...m.links}, postedOn:{...(m.postedOn||{}), [it.platform]:d} };
+        if (it.platform==="facebook" && !m.link) upd.link = it.url;
+        if (m.status!=="done") { upd.status = "done"; upd.statusLog = {...(m.statusLog||{}), done:now}; m.status = "done"; }
+        m.postedOn = upd.postedOn;
+        writes.push({ kind:"update", id:m.id, data:upd, item:it });
+      } else {
+        const id = ("ext-"+it.platform+"-"+it.id).replace(/[^A-Za-z0-9_-]/g,"_");
+        const plats = it.platform==="youtube" ? ["youtube","facebook"] : [it.platform];
+        const doc = { title:String(it.title||"").split("\n")[0].slice(0,120), type, platforms:plats, owner:"Anne", date:d, time:"", status:"done", segment:"",
+          notes:`Added automatically: published on ${it.platform==="youtube"?"YouTube":"Facebook"} but not on the calendar.`, links:{[it.platform]:it.url}, link: it.platform==="facebook"?it.url:"",
+          ext:{[it.platform]:it.id}, postedOn:{[it.platform]:d}, source:"auto-"+it.platform, createdAt:now, statusLog:{done:now} };
+        pool.push({...doc, id, links:{...doc.links}, ext:{...doc.ext}});
+        writes.push({ kind:"create", id, data:doc, item:it });
+      }
+      known.add(it.platform+":"+it.id);
+    }
+    return writes;
+  }
+  let syncing = false;
+  async function platformSync(force){
+    const u = window.firebase?.auth?.().currentUser; if (!db || !u || !canWrite || syncing) return;
+    const ref = db.collection("reference").doc("platformSync"), now = Date.now();
+    let claimed = false;
+    try { await db.runTransaction(async tx => { const s = await tx.get(ref), d = s.exists ? s.data() : {};
+      if (d.runningUntil && d.runningUntil > now) return;
+      if (!force && d.lastRun && now - d.lastRun < SYNC_EVERY) return;
+      tx.set(ref, { runningUntil: now + 120e3 }, { merge:true }); claimed = true; }); } catch(e){ return; }
+    if (!claimed) { if (force) toast("Already checked recently by someone else"); return; }
+    syncing = true; render();
+    try {
+      const since = [CFG.syncSince, iso(addDays(new Date(), -60))].sort()[1];
+      const res = await fetch(`/api/platforms?since=${since}`, { headers:{ Authorization:"Bearer "+await u.getIdToken() } });
+      if (res.status===404) throw new Error("The platform reader (api/platforms.js) isn't deployed yet.");
+      const data = await res.json().catch(()=>({}));
+      if (!res.ok) throw new Error(data.error || `The platform reader answered ${res.status}.`);
+      const writes = planPlatformWrites(data.items||[], state.items, Date.now());
+      for (let i=0;i<writes.length;i+=400) { const b = db.batch();
+        writes.slice(i,i+400).forEach(w => w.kind==="update" ? b.set(db.collection("activities").doc(w.id), w.data, {merge:true}) : b.set(db.collection("activities").doc(w.id), w.data, {merge:true}));
+        await b.commit(); }
+      const result = { matched: writes.filter(w=>w.kind==="update").length, added: writes.filter(w=>w.kind==="create").length };
+      await ref.set({ lastRun:Date.now(), runningUntil:0, sources:data.sources||{}, lastResult:result, lastError:"", by:me }, { merge:true });
+      if (force) toast(`Checked: ${result.matched} marked Posted, ${result.added} added`);
+    } catch(e) {
+      await ref.set({ runningUntil:0, lastError:String(e.message||e), lastErrorAt:Date.now(), lastRun:Date.now() }, { merge:true }).catch(()=>{});
+      if (force) toast(String(e.message||e));
+    } finally { syncing = false; render(); }
+  }
+  function syncLine(){
+    const s = state.reference?.platformSync || {}, src = s.sources || {};
+    const tag = (name, k) => { const x = src[k]; if (!x) return el("span",{class:"sync-off"}, `${name}: not set up`);
+      if (x.error) return el("span",{class:"sync-err",title:x.error}, `${name}: error`);
+      return x.configured ? el("span",{class:"sync-ok"}, `${name} ✓ ${x.count??0}`) : el("span",{class:"sync-off"}, `${name}: not set up`); };
+    return [
+      el("span",{}, syncing ? "Checking platforms…" : s.lastRun ? `Platforms checked ${new Date(s.lastRun).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}` : "Platforms not checked yet"),
+      tag("YouTube","youtube"), tag("Facebook","facebook"), el("span",{class:"sync-off"},"LinkedIn: counted from the planner"),
+      s.lastError ? el("span",{class:"sync-err"}, s.lastError) : null,
+      canWrite ? el("button",{type:"button",class:"small",disabled:syncing,onclick:()=>platformSync(true)},"Check now") : null ];
+  }
+
   setView(state.view);
 
   // ---------- data (Firebase) ----------
@@ -1270,13 +1415,14 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
     const sub = (col, key, map) => db.collection(col).onSnapshot(snap => {
       state[key] = map(snap.docs);
       if (!snap.metadata.fromCache) { seen.add(col); if (seen.size>=5 && ["activities","bank","ideas","kpis","reference"].every(c=>seen.has(c))) { clearTimeout(timer); if ($("notice").textContent.startsWith("Still connecting")) $("notice").hidden = true;
+        if (!firstAll && state.items.length) setTimeout(()=>platformSync(false), 1500);
         if (!firstAll++ && !state.items.length && !state.bank.length && !state.reference?._meta)
           showNotice("This planner is empty. Load the posts, content bank, ideas and plan from the old planner?", el("button",{class:"small primary",type:"button",onclick:importSeed},"Load the data")); } }
       state.loaded = true; render();
     }, e => { clearTimeout(timer); state.loaded = true;
       showNotice(e.code==="permission-denied" ? "Your account isn't on the planner's team list yet. Ask Jacinto to add your email." : "The planner stopped updating. Reload the page to reconnect."); render(); });
     unsubs = [
-      sub("activities","items", docs => docs.map(d=>{ const x={id:d.id, ...d.data()}; x.segment=normSeg(x.segment); return x; })),
+      sub("activities","items", docs => docs.map(d=>{ const x=normPost({id:d.id, ...d.data()}); x.segment=normSeg(x.segment); return x; })),
       sub("bank","bank", docs => docs.map(d=>{ const x={id:d.id, ...d.data()}; x.segment=normSeg(x.segment); return x; })),
       sub("ideas","ideas", docs => docs.map(d=>({id:d.id, ...d.data()}))),
       sub("kpis","kpis", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
