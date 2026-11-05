@@ -468,7 +468,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   const normSeg = s => s==="Breeder Upgrade" ? "Breeder" : s==="Broiler Farm" ? LEGACY_BROILER : (s||"");
   const isBreeder = s => s==="Breeder";
   // A holiday post is an All Audiences post on a PH holiday; it is free, on top of the weekly output.
-  const isHolidayPost = p => p.segment===HOLIDAY_SEG && !!HOLIDAYS[p.date];
+  const isHolidayPost = p => !!HOLIDAYS[p.date] && (p.segment===HOLIDAY_SEG || !p.segment);
   const isBroiler = s => String(s||"").startsWith("Broiler");
   const ctaFor = s => isBreeder(s) ? "Book a free farm upgrade consult" : isBroiler(s) ? "Book a free initial farm consult" : "";
   const CTA_TEXTS = ["Book a free farm upgrade consult","Book a free initial farm consult","Holiday greeting (no sales CTA)"];
@@ -566,9 +566,10 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const s = iso(wk), e = iso(end), today = todayISO();
     const inWeek = state.items.filter(it => it.date>=s && it.date<=e);
     const mine = inWeek.filter(visible);
-    const wp = (t, k) => inWeek.filter(i=>i.type===t && onPlat(i,k));
+    const wp = (t, k) => inWeek.filter(i=>i.type===t && onPlat(i,k) && !isHolidayPost(i));
+    const holWeek = inWeek.filter(i=>isPost(i) && isHolidayPost(i));
     const fbReels = wp("Reel post","facebook"), fbPhotos = wp("Photo post","facebook"), fbLong = wp("Long-form video","facebook"), ytLong = wp("Long-form video","youtube");
-    const liPhotos = inWeek.filter(i=>isPost(i) && onPlat(i,"linkedin"));
+    const liPhotos = inWeek.filter(i=>isPost(i) && onPlat(i,"linkedin") && !isHolidayPost(i));
     const mk = ym(wk), ytMonth = state.items.filter(i=>i.type==="Long-form video" && onPlat(i,"youtube") && i.date.startsWith(mk));
     const meter = (n,goal) => { const i=el("i",{style:`width:${Math.min(100,Math.round(n/goal*100))}%`}); if(n>=goal) i.className="full"; return el("div",{class:"meter"},i); };
     const prow = (lab, list, goal, note, isLive = published) => { const n = list.filter(isLive).length;
@@ -576,7 +577,8 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     $("syncLine").replaceChildren(...syncLine().filter(Boolean));
     $("stats").replaceChildren(
       el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"Facebook this week"),
-        prow("Reels", fbReels, CFG.reelsPerWeek), prow("Photos", fbPhotos, CFG.photosPerWeek), prow("Long-form", fbLong, null, "same videos as YouTube")),
+        prow("Reels", fbReels, CFG.reelsPerWeek), prow("Photos", fbPhotos, CFG.photosPerWeek), prow("Long-form", fbLong, null, "same videos as YouTube"),
+        holWeek.length ? el("small",{class:"hint"}, `+ ${holWeek.length} holiday post${holWeek.length===1?"":"s"}, not counted`) : null),
       el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"YouTube"),
         prow("Long-form this week", ytLong, null, `${ytLong.length} planned`), prow(`Long-form in ${monthName(wk,{month:"long"})}`, ytMonth, CFG.ytPerMonth, `target ${CFG.ytPerMonth} a month`)),
       el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"LinkedIn this week"),
@@ -627,8 +629,8 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const reg = posts.filter(p=>p.segment!==HOLIDAY_SEG), br = reg.filter(p=>isBreeder(p.segment));
     const subs = [...SEGMENTS.filter(isBroiler), LEGACY_BROILER].map(s=>[s, reg.filter(p=>p.segment===s).length]).filter(([s,n])=>n||s!==LEGACY_BROILER);
     $("calSum").replaceChildren(
-      el("span",{},"Posts ", el("b",{},posts.length)), el("span",{},"Reels ", el("b",{},posts.filter(p=>p.type==="Reel post").length)),
-      el("span",{},"Photos ", el("b",{},posts.filter(p=>p.type==="Photo post").length)), el("span",{},"Long-form ", el("b",{},posts.filter(p=>p.type==="Long-form video").length)), el("span",{},"On LinkedIn ", el("b",{},posts.filter(p=>onPlat(p,"linkedin")).length)), el("span",{},"Breeder ", el("b",{},br.length)),
+      el("span",{},"Posts ", el("b",{},posts.length)), el("span",{},"Reels ", el("b",{},posts.filter(p=>p.type==="Reel post" && !isHolidayPost(p)).length)),
+      el("span",{},"Photos ", el("b",{},posts.filter(p=>p.type==="Photo post" && !isHolidayPost(p)).length)), el("span",{},"Long-form ", el("b",{},posts.filter(p=>p.type==="Long-form video").length)), el("span",{},"On LinkedIn ", el("b",{},posts.filter(p=>onPlat(p,"linkedin")).length)), el("span",{},"Breeder ", el("b",{},br.length)),
       el("span",{},"All broiler ", el("b",{},reg.filter(p=>isBroiler(p.segment)).length)), ...subs.map(([s,n])=>el("span",{},s.replace("Broiler - ","↳ ")+" ", el("b",{},n))), el("span",{},"All Audiences ", el("b",{},posts.length-reg.length)), el("span",{},"Holiday ", el("b",{},posts.filter(isHolidayPost).length)),
       el("span",{},"Breeder share of regular posts ", el("b",{}, reg.length?pct(br.length/reg.length):"—")),
       el("span",{},"Posted ", el("b",{}, posts.filter(published).length)));
@@ -716,7 +718,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       photos:pub.filter(x=>x.type==="Photo post" && onPlat(x,"facebook") && !isHolidayPost(x)).length,
       yt:pub.filter(x=>x.type==="Long-form video" && onPlat(x,"youtube")).length,
       fbLong:pub.filter(x=>x.type==="Long-form video" && onPlat(x,"facebook")).length,
-      linkedin:inP.filter(liveOnLinkedIn).length,
+      linkedin:inP.filter(x=>liveOnLinkedIn(x) && !isHolidayPost(x)).length,
       linkedinTarget: Math.round(((addMonths(p.start,p.months)-p.start)/864e5)/7*CFG.linkedinPerWeek),
       linkedinDue: Math.max(0, Math.floor(((parse(upto)-p.start)/864e5+1)/7)*CFG.linkedinPerWeek), holiday:pub.length-regPub.length,
       breederShare: reg.length? br/reg.length : null, regular:reg.length, broilerMix,
