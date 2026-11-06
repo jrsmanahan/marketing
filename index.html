@@ -104,7 +104,7 @@ td.att-ontime{color:var(--ok)} td.att-late{color:var(--warn);font-weight:600} td
 .card.done{opacity:.62}
 .card.done .t{text-decoration:line-through}
 .st{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px;border:1px solid currentColor;white-space:nowrap}
-.st-todo{color:var(--muted)} .st-doing{color:var(--brand)} .st-review{color:var(--review)} .st-approved{color:var(--warn)} .st-scheduled{color:var(--sched)} .st-done{color:var(--ok)}
+.st-todo{color:var(--muted)} .st-doing{color:var(--brand)} .st-review{color:var(--review)} .st-jreview{color:var(--warn)} .st-scheduled{color:var(--sched)} .st-done{color:var(--ok)}
 .type{font-weight:600;color:var(--fg)}
 .seg{font-size:10.5px;padding:1px 5px;border-radius:4px;background:var(--sunk);white-space:nowrap}
 .rail{display:grid;gap:12px}
@@ -190,6 +190,15 @@ textarea{min-height:70px;resize:vertical}
   #statement{border:none;padding:0} .print-only{display:block} span.print-only{display:inline}
   .tablewrap{overflow:visible;border:1px solid #999} th{background:#eee;color:#000}
 }
+.ibox{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.ibox>summary{cursor:pointer;padding:12px 14px;display:flex;gap:10px;align-items:baseline;list-style:none}
+.ibox>summary::-webkit-details-marker{display:none}
+.ibox>summary::before{content:"▸";color:var(--muted);transition:transform .15s;display:inline-block}
+.ibox[open]>summary::before{transform:rotate(90deg)}
+.ibox>summary .sec{font-family:var(--f-display);font-size:16px;font-weight:700}
+.ibody{display:grid;gap:10px;padding:0 14px 14px}
+.thbtn{border:none;background:none;padding:0;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+th.sortable:hover{color:var(--fg)}
 pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;background:var(--sunk);padding:12px;border-radius:8px;margin:0;max-height:320px;overflow:auto}
 
 /* login */
@@ -253,17 +262,18 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     <div class="main">
       <section class="board" id="board" aria-label="Week board"></section>
       <aside class="rail">
-        <div class="panel"><h3>Waiting for approval <span id="revCount">0</span></h3><div class="list" id="reviewList"></div></div>
+        <div class="panel"><h3>For Anne review <span id="revCount">0</span></h3><div class="list" id="reviewList"></div></div>
+        <div class="panel"><h3>For Jacinto approval <span id="jrevCount">0</span></h3><div class="list" id="jreviewList"></div></div>
         <div class="panel"><h3>Overdue <span id="odCount">0</span></h3><div class="list" id="overdueList"></div></div>
         <div class="panel"><h3>Status flow</h3>
           <div class="legend">
             <div><span class="st st-todo">Not started</span></div>
-            <div><span class="st st-doing">Editing / in progress</span> shoot, edit, write</div>
-            <div><span class="st st-review">For approval</span> Anne checks message, Jacinto approves everyday posts. Doc Jorge approves advertorials, client stories, projects, pricing</div>
-            <div>Sending an item from For approval back to Editing counts as one revision.</div>
-            <div><span class="st st-approved">Approved</span> final go signal</div>
-            <div><span class="st st-scheduled">Scheduled</span> queued in Meta</div>
-            <div><span class="st st-done">Posted / done</span> live or completed</div>
+            <div><span class="st st-doing">Editing</span> shoot, edit, write</div>
+            <div><span class="st st-review">For Anne review</span> message, brand and caption</div>
+            <div><span class="st st-jreview">For Jacinto approval</span> final go signal. Doc Jorge also approves advertorials, client stories, projects, pricing</div>
+            <div><span class="st st-scheduled">Post scheduled</span> queued in Meta</div>
+            <div><span class="st st-done">Done / Posted</span> live or completed</div>
+            <div>Sending an item from either review back to Editing counts as one revision.</div>
           </div>
           <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin-top:10px"><input type="checkbox" id="hideDone" style="width:auto"> Hide posted and done</label>
         </div>
@@ -332,22 +342,39 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
 
   <!-- IDEAS -->
   <section id="v-ideas" hidden style="display:grid;gap:16px">
-    <div class="bar"><h2 class="sec">Content bank, for shoot</h2><span class="hint">Pick an idea and plan the shoot. It goes on the week board.</span></div>
-    <div class="tablewrap"><table>
-      <thead><tr><th class="num">#</th><th>Content idea</th><th>Segment</th><th>Pillar</th><th>Ideal month</th><th>Notes</th><th>Status</th><th></th></tr></thead>
-      <tbody id="bankBody"></tbody>
-    </table></div>
-    <form class="bar" id="bankAdd" style="justify-content:flex-start">
-      <input id="b-idea" placeholder="New content idea" style="flex:2 1 240px">
-      <select id="b-seg" style="flex:1 1 140px"></select>
-      <select id="b-pillar" style="flex:1 1 140px"><option>Build Stories</option><option>Proof &amp; Numbers</option><option>Expert Know-How</option><option>People of Prime</option></select>
-      <button class="primary" type="submit">Add to bank</button>
-    </form>
-    <div class="bar"><h2 class="sec">Marketing ideas</h2></div>
-    <div class="tablewrap"><table>
-      <thead><tr><th class="num">#</th><th>Category</th><th>Idea</th><th>What it is</th><th>Segment</th><th>Timing</th><th>Status</th></tr></thead>
-      <tbody id="ideaBody"></tbody>
-    </table></div>
+    <details class="ibox" id="bankBox" open>
+      <summary><span class="sec">Content bank, for shoot</span> <span class="hint" id="bankCount"></span></summary>
+      <div class="ibody">
+        <form class="bar" id="bankAdd" style="justify-content:flex-start">
+          <input id="b-idea" placeholder="New content idea" maxlength="300" style="flex:3 1 260px" aria-label="New content idea">
+          <select id="b-seg" style="flex:1 1 150px" aria-label="Segment"></select>
+          <select id="b-pillar" style="flex:1 1 150px" aria-label="Pillar"></select>
+          <select id="b-month" style="flex:1 1 150px" aria-label="Ideal month"></select>
+          <button class="primary" type="submit">Add to bank</button>
+        </form>
+        <p class="hint" style="margin:0">Click a column title to sort. Click an idea to edit it. "Plan shoot" puts it on the week board.</p>
+        <div class="tablewrap"><table>
+          <thead><tr id="bankHead"></tr></thead>
+          <tbody id="bankBody"></tbody>
+        </table></div>
+      </div>
+    </details>
+    <details class="ibox" id="ideaBox" open>
+      <summary><span class="sec">Marketing ideas</span> <span class="hint" id="ideaCount"></span></summary>
+      <div class="ibody">
+        <form class="bar" id="ideaAdd" style="justify-content:flex-start">
+          <input id="i-idea" placeholder="New marketing idea" maxlength="200" style="flex:3 1 240px" aria-label="New marketing idea">
+          <select id="i-cat" style="flex:1 1 150px" aria-label="Category"></select>
+          <select id="i-seg" style="flex:1 1 150px" aria-label="Segment"></select>
+          <input id="i-time" placeholder="Timing, e.g. Month 2" maxlength="80" style="flex:1 1 140px" aria-label="Timing">
+          <button class="primary" type="submit">Add idea</button>
+        </form>
+        <div class="tablewrap"><table>
+          <thead><tr id="ideaHead"></tr></thead>
+          <tbody id="ideaBody"></tbody>
+        </table></div>
+      </div>
+    </details>
   </section>
 </div>
 
@@ -459,9 +486,11 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     if (POST_TYPES.includes(x.type)) { if (!x.links) x.links = x.link ? { facebook:x.link } : {}; }
     return x;
   }
-  const TYPES = [...POST_TYPES,"Shoot","Edit","Write-up / SEO","Website / LinkedIn","On-ground activity","Inquiry follow-up","Meeting","Training","Admin"];
-  const STATUSES = ["todo","doing","review","approved","scheduled","done"];
-  const label = (s, isPost) => ({todo:"Not started",doing:isPost?"Editing":"In progress",review:"For approval",approved:"Approved",scheduled:"Scheduled",done:isPost?"Posted":"Done"})[s] || s;
+  const TYPES = [...POST_TYPES,"Shoot","Edit","Write-up / SEO","Website / LinkedIn","Inquiry follow-up","Meeting","Training","Admin"];
+  // Status flow: Not started → Editing → For Anne review → For Jacinto approval → Post scheduled → Done / Posted
+  const STATUSES = ["todo","doing","review","jreview","scheduled","done"];
+  const label = (s, isPost) => ({todo:"Not started",doing:isPost?"Editing":"In progress",review:"For Anne review",jreview:"For Jacinto approval",scheduled:isPost?"Post scheduled":"Scheduled",done:isPost?"Posted":"Done"})[s] || s;
+  const inApproval = s => s==="review" || s==="jreview";
   // Target segments. Breeder vs all Broiler types is the 70/30 split.
   const SEGMENTS = ["Breeder","Broiler - Small scale","Broiler - CCS3","Broiler - CCS4","Broiler - MTC"];
   const HOLIDAY_SEG = "All Audiences", LEGACY_BROILER = "Broiler (type not set)";
@@ -584,7 +613,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"LinkedIn this week"),
         prow("Photos", liPhotos, CFG.linkedinPerWeek, `${liPhotos.length} planned · counts once the LinkedIn link is added`, liveOnLinkedIn)),
       el("div",{class:"stat"}, el("span",{class:"eyebrow"}, state.who==="All"?"Team activities":`${state.who}'s activities`), el("b",{}, String(mine.length)), el("small",{}, `${mine.filter(published).length} done · ${mine.filter(i=>!published(i)).length} open`)),
-      el("div",{class:"stat"}, el("span",{class:"eyebrow"},"On-ground this week"), el("b",{}, String(inWeek.filter(i=>i.type==="On-ground activity").length)), el("small",{},"Every on-ground activity = a marketing asset")));
+      el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Shoots this week"), el("b",{}, String(inWeek.filter(i=>i.type==="Shoot").length)), el("small",{}, `${inWeek.filter(i=>i.type==="Shoot" && published(i)).length} done · farm visits, talks, expos, site work`)));
     const board = $("board"); board.replaceChildren();
     for (let i=0;i<7;i++){
       const d = addDays(wk,i), ds = iso(d);
@@ -600,7 +629,10 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const rev = state.items.filter(i=>i.status==="review" && visible(i)).sort((a,b)=>a.date.localeCompare(b.date));
     const od = state.items.filter(i=>i.date<today && !published(i) && i.status!=="scheduled" && visible(i)).sort((a,b)=>a.date.localeCompare(b.date));
     $("revCount").textContent = rev.length; $("odCount").textContent = od.length;
-    $("reviewList").replaceChildren(...(rev.length? rev.slice(0,12).map(i=>cardFor(i,true)) : [el("div",{class:"empty"},"Nothing waiting for approval.")]));
+    $("reviewList").replaceChildren(...(rev.length? rev.slice(0,12).map(i=>cardFor(i,true)) : [el("div",{class:"empty"},"Nothing waiting for Anne.")]));
+    const jrev = state.items.filter(i=>i.status==="jreview" && visible(i)).sort((a,b)=>a.date.localeCompare(b.date));
+    $("jrevCount").textContent = jrev.length;
+    $("jreviewList").replaceChildren(...(jrev.length? jrev.slice(0,12).map(i=>cardFor(i,true)) : [el("div",{class:"empty"},"Nothing waiting for Jacinto.")]));
     $("overdueList").replaceChildren(...(od.length? od.slice(0,12).map(i=>cardFor(i,true)) : [el("div",{class:"empty"},"Nothing overdue.")]));
     $("addBtn").hidden = !canWrite;
   }
@@ -704,7 +736,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const withViews = pub.filter(x=>x.views!=null && x.views!=="" && !isNaN(x.views));
     const avgViews = withViews.length ? withViews.reduce((a,x)=>a+Number(x.views),0)/withViews.length : null;
     const top = withViews.slice().sort((a,b)=>b.views-a.views)[0];
-    const edits = inP.filter(x=>(isPost(x)||x.type==="Edit") && ["approved","scheduled","done"].includes(x.status) && (x.statusLog?.review || x.revisions!=null));
+    const edits = inP.filter(x=>(isPost(x)||x.type==="Edit") && ["scheduled","done"].includes(x.status) && (x.statusLog?.review || x.statusLog?.jreview || x.statusLog?.approved || x.revisions!=null));
     const firstEdit = edits.length ? edits.filter(x=>(Number(x.revisions)||0)<=1).length/edits.length : null;
     const months = []; for (let i=0;i<p.months;i++) months.push(ym(addMonths(p.start,i)));
     const prevKey = ym(addMonths(p.start,-1)), lastKey = months[months.length-1];
@@ -729,7 +761,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       views: sum("views"), engagement: sum("engagement"), inquiries, answered,
       answered24: inquiries ? (answered||0)/inquiries : null, qualified: sum("qualified"), toSales: sum("toSales"), closedDeals: sum("closedDeals"),
       snapsMissing: months.filter(k=>!state.kpis[k] && k<ym(new Date())), people,
-      onGround: inP.filter(x=>x.type==="On-ground activity").length, docJorge: inP.filter(x=>x.needsDocJorge && !published(x)).length,
+      shoots: inP.filter(x=>x.type==="Shoot" && x.date<=upto).length, shootsDone: inP.filter(x=>x.type==="Shoot" && published(x)).length, docJorge: inP.filter(x=>x.needsDocJorge && !published(x)).length,
       notes: months.map(k=>state.kpis[k]?.notes).filter(Boolean) };
     if (p.kind==="month") r.score = scoreMonth(r);
     else r.monthly = months.map(k => { const mp = {kind:"month", start:parse(k+"-01"), months:1}; const mr = compute(mp); return {k, label:monthName(mp.start,{month:"short",year:"numeric"}), score:mr.score, inFuture: k>ym(new Date())}; });
@@ -788,7 +820,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     secs.push({sec:"Production & team", rows:[
       {l:"First edits approved with ≤1 revision", v:pct(r.firstEdit), g:grade(r.firstEdit, CFG.firstEditOk, 0.714), sub:`${r.editsCounted} edits went through approval · target 70% by month 3 (counted from status changes)`},
       {l:"Waiting on Doc Jorge's approval", v:String(r.docJorge), g:"na", sub:"advertorials, client stories, projects, pricing, company positions"},
-      {l:"On-ground activities", v:String(r.onGround), g:"na", sub:"talks, farm visits, expos logged"},
+      {l:"Shoots", v:`${r.shootsDone} / ${r.shoots}`, g:"na", sub:"done of shoots scheduled so far · farm visits, talks, expos, site work"},
       ...r.people.map(pp=>({l:pp.id, v:`${pp.done} / ${pp.due}`, g:pp.due?grade(pp.done/pp.due,1,0.8):"na", sub:`${pp.open} still open of items due so far`})),
     ]});
     if (isManager() && Object.keys(SHIFTS).length) secs.push({sec:"Attendance", rows: Object.keys(SHIFTS).map(email => { const sm = attSummary(email, r.s, r.upto, new Date());
@@ -862,34 +894,6 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     catch(e){ const r = document.createRange(); r.selectNodeContents($("reportText")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast("Text selected. Press Ctrl+C or Cmd+C to copy"); }
   };
 
-  function renderIdeas(){
-    const bb = $("bankBody"); bb.replaceChildren();
-    const bank = state.bank.slice().sort((a,b)=>(a.n||999)-(b.n||999));
-    if (!bank.length) bb.append(el("tr",{}, el("td",{colspan:"8",class:"empty"}, state.loaded?"The bank is empty. Add your first idea below.":"Loading…")));
-    for (const b of bank) {
-      const st = el("select",{"aria-label":"Status", disabled:!canWrite}, BANK_ST.map(s=>el("option",{value:s, selected:b.status===s},s)));
-      st.onchange = () => upd("bank", b.id, {status:st.value});
-      bb.append(el("tr",{}, el("td",{class:"num"}, b.n||""), el("td",{class:"wide"}, b.idea), el("td",{}, el("span",{class:"seg"}, b.segment||"—")),
-        el("td",{}, b.pillar||""), el("td",{style:"white-space:nowrap"}, b.month||""), el("td",{class:"hint"}, b.notes||""), el("td",{}, st),
-        el("td",{}, canWrite ? el("button",{class:"small",type:"button",onclick:()=>openForm(null,{type:"Shoot",title:"Shoot: "+b.idea,segment:b.segment,notes:b.notes?("Content bank #"+b.n+": "+b.notes):("Content bank #"+b.n), fromBank:b.id})},"Plan shoot") : "")));
-    }
-    const ib = $("ideaBody"); ib.replaceChildren();
-    const ideas = state.ideas.slice().sort((a,b)=>(a.n||999)-(b.n||999));
-    if (!ideas.length) ib.append(el("tr",{}, el("td",{colspan:"7",class:"empty"}, state.loaded?"No marketing ideas yet.":"Loading…")));
-    for (const i of ideas) {
-      const st = el("select",{"aria-label":"Status", disabled:!canWrite}, [...new Set([...IDEA_ST, i.status])].map(s=>el("option",{value:s, selected:i.status===s},s)));
-      st.onchange = () => upd("ideas", i.id, {status:st.value});
-      ib.append(el("tr",{}, el("td",{class:"num"}, i.n||""), el("td",{style:"white-space:nowrap"}, i.category||""), el("td",{style:"min-width:160px;font-weight:600"}, i.idea),
-        el("td",{class:"wide hint"}, i.what||""), el("td",{}, el("span",{class:"seg"}, i.segment||"—")), el("td",{style:"white-space:nowrap"}, i.timing||""), el("td",{}, st)));
-    }
-    $("bankAdd").hidden = !canWrite;
-  }
-  $("bankAdd").addEventListener("submit", async ev => {
-    ev.preventDefault(); if(!db) return;
-    const idea = $("b-idea").value.trim(); if(!idea){ $("b-idea").focus(); return; }
-    const n = Math.max(0,...state.bank.map(b=>b.n||0))+1;
-    try { await db.collection("bank").doc("b"+pad(n)+"-"+Date.now().toString(36)).set({n, idea, segment:$("b-seg").value, pillar:$("b-pillar").value, month:"", notes:"", status:"In bank", createdAt:Date.now(), ...(me?{createdBy:me}:{}), ...stamp()}); $("b-idea").value=""; toast("Added to the bank"); } catch(e){ failed(e); }
-  });
   async function upd(col, id, data){ try { await db.collection(col).doc(id).update({...data, ...stamp()}); toast("Saved"); } catch(e){ failed(e); } }
 
   // ---------- form ----------
@@ -911,7 +915,6 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   for (const {k} of PLATFORMS) $("f-pl-"+k).addEventListener("change", () => syncPlatformBoxes(false));
   function togglePost(){ const t=$("f-type").value, post = POST_TYPES.includes(t); if (post) syncPlatformBoxes(true); document.querySelectorAll(".post-only").forEach(x=>x.hidden=!post); document.querySelectorAll(".nonpost").forEach(x=>x.hidden=post); if (t==="Edit") { $("f-rev").closest("label").hidden=false; } $("f-capcut").closest("label").hidden = !(post || t==="Edit"); fillStatuses(post, $("f-status").value); }
   $("f-type").onchange = togglePost;
-  $("b-seg").append(...SEGMENTS.map(s=>el("option",{value:s},s)));
   function fillSegs(cur){
     const opts = [["","None"], ...SEGMENTS.map(s=>[s,s]), [HOLIDAY_SEG, HOLIDAY_SEG]];
     if (cur && !opts.some(([v])=>v===cur)) opts.push([cur, cur]);
@@ -970,7 +973,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       const col = db.collection("activities");
       if (editing) {
         const ch = editing.status!==status ? { statusLog: {...(editing.statusLog||{}), [status]: Date.now()} } : {};
-        if (editing.status==="review" && status==="doing" && String(body.revisions??"")===String(editing.revisions??"")) body.revisions = (Number(editing.revisions)||0)+1;
+        if (inApproval(editing.status) && status==="doing" && String(body.revisions??"")===String(editing.revisions??"")) body.revisions = (Number(editing.revisions)||0)+1;
         await col.doc(editing.id).update({...body, ...ch, ...stamp()}); toast("Saved");
       } else {
         const n = Number($("f-repeat").value)||1, now = Date.now(), series = n>1 ? "s"+now : null;
@@ -1506,6 +1509,128 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
     try { await db.collection("attendance").doc(`leave_${ds}_${email}`).delete(); toast("Leave removed"); } catch(e){ failed(e); }
   }
 
+  // ---------- content bank & marketing ideas: add at top, edit, sort, collapse ----------
+  const PILLARS = ["Build Stories","Proof & Numbers","Expert Know-How","People of Prime"];
+  const BANK_MONTHS = ["Month 1 (Nov)","Month 2 (Dec)","Month 3 (Jan)","Month 4 Onwards"];
+  const IDEA_CATS = ["Referral Network","Events & Education","Digital Tools","Campaigns","Financing Partners","Direct B2B Outreach"];
+  const IDEA_SEGS = ["All", ...SEGMENTS];
+  const uniq = (base, extra) => [...new Set([...base, ...extra.filter(Boolean)])];
+  const opts = (sel, list, cur) => { sel.replaceChildren(...list.map(v=>el("option",{value:v, selected:v===cur}, v))); };
+  const orderOf = (list, v) => { const i = list.indexOf(v); return i<0 ? 999 : i; };
+  let ideaSort = { bank:{k:"n",dir:1}, ideas:{k:"n",dir:1} };
+  try { const s = JSON.parse(localStorage.getItem("planner-ideasort")||"null"); if (s) ideaSort = {...ideaSort, ...s}; } catch(e){}
+  const BANK_COLS = [["n","#","num"],["idea","Content idea"],["segment","Segment"],["pillar","Pillar"],["month","Ideal month"],["notes","Notes"],["status","Status"],["",""]];
+  const IDEA_COLS = [["n","#","num"],["category","Category"],["idea","Idea"],["what","What it is"],["segment","Segment"],["timing","Timing"],["status","Status"]];
+  const sortVal = (which, row, k) => {
+    if (k==="n") return row.n||999;
+    if (k==="segment") return orderOf([...SEGMENTS, LEGACY_BROILER, HOLIDAY_SEG, "All"], row.segment)*1000 + (row.n||0);
+    if (k==="pillar") return orderOf(PILLARS, row.pillar)*1000 + (row.n||0);
+    if (k==="month") return orderOf(BANK_MONTHS, row.month)*1000 + (row.n||0);
+    if (k==="status") return orderOf(which==="bank"?BANK_ST:IDEA_ST, row.status)*1000 + (row.n||0);
+    return String(row[k]||"").toLowerCase();
+  };
+  function sortRows(which, rows){
+    const {k, dir} = ideaSort[which];
+    return rows.slice().sort((a,b)=>{ const x = sortVal(which,a,k), y = sortVal(which,b,k); return (x<y?-1:x>y?1:0)*dir || (a.n||999)-(b.n||999); });
+  }
+  function headRow(which, cols, host){
+    host.replaceChildren(...cols.map(([k,l,cls]) => {
+      if (!k || k==="notes" || k==="what") return el("th",{class:cls||null}, l);
+      const on = ideaSort[which].k===k, arrow = on ? (ideaSort[which].dir>0 ? " ▲" : " ▼") : "";
+      return el("th",{class:(cls||"")+" sortable","aria-sort":on?(ideaSort[which].dir>0?"ascending":"descending"):"none"},
+        el("button",{type:"button",class:"thbtn",onclick:()=>{ const s = ideaSort[which]; ideaSort[which] = { k, dir: s.k===k ? -s.dir : 1 }; try{ localStorage.setItem("planner-ideasort", JSON.stringify(ideaSort)); }catch(e){} renderIdeas(); }}, l+arrow));
+    }));
+  }
+  function renderIdeas(){
+    headRow("bank", BANK_COLS, $("bankHead")); headRow("ideas", IDEA_COLS, $("ideaHead"));
+    const bb = $("bankBody"); bb.replaceChildren();
+    const bank = sortRows("bank", state.bank);
+    $("bankCount").textContent = `${bank.length} ideas · ${bank.filter(b=>b.status==="In bank").length} not yet planned`;
+    if (!bank.length) bb.append(el("tr",{}, el("td",{colspan:"8",class:"empty"}, state.loaded?"The bank is empty. Add your first idea above.":"Loading…")));
+    for (const b of bank) {
+      const st = el("select",{"aria-label":"Status", disabled:!canWrite, onclick:e=>e.stopPropagation()}, uniq(BANK_ST,[b.status]).map(s=>el("option",{value:s, selected:b.status===s},s)));
+      st.onchange = () => upd("bank", b.id, {status:st.value});
+      bb.append(el("tr",{class:canWrite?"click":"", tabindex:canWrite?"0":null, onclick:()=>canWrite&&openBank(b), onkeydown:e=>{ if(e.key==="Enter"&&canWrite) openBank(b); }},
+        el("td",{class:"num"}, b.n||""), el("td",{class:"wide"}, b.idea), el("td",{}, el("span",{class:"seg"}, b.segment||"—")),
+        el("td",{}, b.pillar||""), el("td",{style:"white-space:nowrap"}, b.month||""), el("td",{class:"hint"}, b.notes||""), el("td",{}, st),
+        el("td",{}, canWrite ? el("button",{class:"small",type:"button",onclick:e=>{ e.stopPropagation(); openForm(null,{type:"Shoot",title:"Shoot: "+b.idea,segment:b.segment,notes:b.notes?("Content bank #"+b.n+": "+b.notes):("Content bank #"+b.n), fromBank:b.id}); }},"Plan shoot") : "")));
+    }
+    const ib = $("ideaBody"); ib.replaceChildren();
+    const ideas = sortRows("ideas", state.ideas);
+    $("ideaCount").textContent = `${ideas.length} ideas`;
+    if (!ideas.length) ib.append(el("tr",{}, el("td",{colspan:"7",class:"empty"}, state.loaded?"No marketing ideas yet. Add one above.":"Loading…")));
+    for (const i of ideas) {
+      const st = el("select",{"aria-label":"Status", disabled:!canWrite, onclick:e=>e.stopPropagation()}, uniq(IDEA_ST,[i.status]).map(s=>el("option",{value:s, selected:i.status===s},s)));
+      st.onchange = () => upd("ideas", i.id, {status:st.value});
+      ib.append(el("tr",{class:canWrite?"click":"", tabindex:canWrite?"0":null, onclick:()=>canWrite&&openIdea(i), onkeydown:e=>{ if(e.key==="Enter"&&canWrite) openIdea(i); }},
+        el("td",{class:"num"}, i.n||""), el("td",{style:"white-space:nowrap"}, i.category||""), el("td",{style:"min-width:160px;font-weight:600"}, i.idea),
+        el("td",{class:"wide hint"}, i.what||""), el("td",{}, el("span",{class:"seg"}, i.segment||"—")), el("td",{style:"white-space:nowrap"}, i.timing||""), el("td",{}, st)));
+    }
+    $("bankAdd").hidden = !canWrite; $("ideaAdd").hidden = !canWrite;
+  }
+  // add forms (top of each table)
+  opts($("b-seg"), SEGMENTS, "Breeder"); opts($("b-pillar"), PILLARS, "Expert Know-How"); opts($("b-month"), BANK_MONTHS, "");
+  $("b-month").prepend(el("option",{value:"",selected:true},"Ideal month")); $("b-month").value = "";
+  opts($("i-cat"), IDEA_CATS, ""); $("i-cat").prepend(el("option",{value:"",selected:true},"Category")); $("i-cat").value = "";
+  opts($("i-seg"), IDEA_SEGS, "All");
+  $("bankAdd").addEventListener("submit", async ev => {
+    ev.preventDefault(); if(!db) return;
+    const idea = $("b-idea").value.trim(); if(!idea){ $("b-idea").focus(); toast("Type the content idea first"); return; }
+    const n = Math.max(0,...state.bank.map(b=>b.n||0))+1;
+    try { await db.collection("bank").doc("b"+pad(n)+"-"+Date.now().toString(36)).set({n, idea, segment:$("b-seg").value, pillar:$("b-pillar").value, month:$("b-month").value, notes:"", status:"In bank", createdAt:Date.now(), ...(me?{createdBy:me}:{}), ...stamp()}); $("b-idea").value=""; toast("Added to the bank"); } catch(e){ failed(e); }
+  });
+  $("ideaAdd").addEventListener("submit", async ev => {
+    ev.preventDefault(); if(!db) return;
+    const idea = $("i-idea").value.trim(); if(!idea){ $("i-idea").focus(); toast("Type the idea first"); return; }
+    const n = Math.max(0,...state.ideas.map(b=>b.n||0))+1;
+    try { await db.collection("ideas").doc("i"+pad(n)+"-"+Date.now().toString(36)).set({n, idea, category:$("i-cat").value, what:"", segment:$("i-seg").value, timing:$("i-time").value.trim(), status:"For discussion", createdAt:Date.now(), ...(me?{createdBy:me}:{}), ...stamp()}); $("i-idea").value=""; $("i-time").value=""; toast("Idea added"); } catch(e){ failed(e); }
+  });
+  // edit dialogs
+  const ideaDlg = el("dialog",{"aria-labelledby":"ideaDlgTitle"}); document.body.append(ideaDlg);
+  function editDialog(title, fields, onSave, onDelete){
+    const form = el("form",{class:"f",novalidate:true},
+      ...fields.map(f => el("label",{class:f.full?"full":null}, f.label,
+        f.type==="select" ? el("select",{id:f.id}, uniq(f.options,[f.value]).map(v=>el("option",{value:v,selected:v===f.value}, v||"—")))
+        : f.type==="textarea" ? el("textarea",{id:f.id,maxlength:"1500"}, f.value||"")
+        : el("input",{id:f.id,value:f.value||"",maxlength:f.max||"300"}))),
+      el("div",{class:"actions"},
+        el("div",{class:"left"}, el("button",{type:"button",class:"danger",id:"ie-del"},"Delete"),
+          el("span",{class:"confirm",id:"ie-conf",hidden:true},"Delete this idea? ", el("button",{type:"button",class:"danger",id:"ie-yes"},"Yes, delete"), " ", el("button",{type:"button",id:"ie-no"},"Keep"))),
+        el("button",{type:"button",onclick:()=>ideaDlg.close()},"Cancel"), el("button",{type:"submit",class:"primary"},"Save")));
+    form.onsubmit = async ev => { ev.preventDefault(); const v = Object.fromEntries(fields.map(f=>[f.key, $(f.id).value.trim()]));
+      if (!v.idea) { toast("The idea can't be empty"); return; } try { await onSave(v); ideaDlg.close(); toast("Saved"); } catch(e){ failed(e); } };
+    ideaDlg.replaceChildren(el("div",{class:"dlg-head"}, el("h3",{id:"ideaDlgTitle"}, title)), form);
+    $("ie-del").onclick = () => { $("ie-conf").hidden = false; $("ie-del").hidden = true; };
+    $("ie-no").onclick = () => { $("ie-conf").hidden = true; $("ie-del").hidden = false; };
+    $("ie-yes").onclick = async () => { try { await onDelete(); ideaDlg.close(); toast("Deleted"); } catch(e){ failed(e); } };
+    ideaDlg.showModal(); setTimeout(()=>fields[0] && $(fields[0].id).focus(), 30);
+  }
+  function openBank(b){
+    editDialog(`Edit content idea #${b.n||""}`, [
+      {key:"idea", id:"be-idea", label:"Content idea", value:b.idea, full:true},
+      {key:"segment", id:"be-seg", label:"Segment", type:"select", options:SEGMENTS, value:b.segment},
+      {key:"pillar", id:"be-pillar", label:"Pillar", type:"select", options:PILLARS, value:b.pillar},
+      {key:"month", id:"be-month", label:"Ideal month", type:"select", options:["",...BANK_MONTHS], value:b.month||""},
+      {key:"status", id:"be-status", label:"Status", type:"select", options:BANK_ST, value:b.status},
+      {key:"notes", id:"be-notes", label:"Notes", type:"textarea", value:b.notes, full:true},
+    ], v => db.collection("bank").doc(b.id).update({...v, ...stamp()}), () => db.collection("bank").doc(b.id).delete());
+  }
+  function openIdea(i){
+    editDialog(`Edit marketing idea #${i.n||""}`, [
+      {key:"idea", id:"ie-idea", label:"Idea", value:i.idea, full:true},
+      {key:"category", id:"ie-cat", label:"Category", type:"select", options:["",...IDEA_CATS], value:i.category||""},
+      {key:"segment", id:"ie-seg", label:"Segment", type:"select", options:["",...IDEA_SEGS], value:i.segment||""},
+      {key:"timing", id:"ie-time", label:"Timing", value:i.timing, max:"80"},
+      {key:"status", id:"ie-status", label:"Status", type:"select", options:IDEA_ST, value:i.status},
+      {key:"what", id:"ie-what", label:"What it is", type:"textarea", value:i.what, full:true},
+    ], v => db.collection("ideas").doc(i.id).update({...v, ...stamp()}), () => db.collection("ideas").doc(i.id).delete());
+  }
+  // collapse / expand remembered per person
+  for (const id of ["bankBox","ideaBox"]) {
+    try { if (localStorage.getItem("planner-"+id)==="closed") $(id).open = false; } catch(e){}
+    $(id).addEventListener("toggle", () => { try { localStorage.setItem("planner-"+id, $(id).open ? "open" : "closed"); } catch(e){} });
+  }
+
   setView(state.view);
 
   // ---------- data (Firebase) ----------
@@ -1536,7 +1661,10 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
       showNotice(e.code==="permission-denied" ? "Your account isn't on the planner's team list yet. Ask Jacinto to add your email." : "The planner stopped updating. Reload the page to reconnect."); render(); });
     const subQ = (q, key) => q.onSnapshot(snap => { state[key] = snap.docs.map(d=>({id:d.id, ...d.data()})); render(); }, () => {});
     unsubs = [
-      sub("activities","items", docs => docs.map(d=>{ const x=normPost({id:d.id, ...d.data()}); x.segment=normSeg(x.segment); return x; })),
+      sub("activities","items", docs => docs.map(d=>{ const x=normPost({id:d.id, ...d.data()}); x.segment=normSeg(x.segment);
+        if (x.status==="approved") x.status = "jreview";          // old "Approved" → waits for Jacinto's approval
+        if (x.type==="On-ground activity") x.type = "Shoot";       // on-ground merged into Shoot
+        return x; })),
       sub("bank","bank", docs => docs.map(d=>{ const x={id:d.id, ...d.data()}; x.segment=normSeg(x.segment); return x; })),
       sub("ideas","ideas", docs => docs.map(d=>({id:d.id, ...d.data()}))),
       sub("kpis","kpis", docs => Object.fromEntries(docs.map(d=>[d.id, d.data()]))),
