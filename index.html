@@ -447,6 +447,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     reelsPerWeek: 2, photosPerWeek: 2, breederShare: 0.70,
     // Marketing Services Agreement, Oct 22 2026
     reelsPerMonth: 8, photosPerMonth: 8, ytPerMonth: 2, postsPerMonth: 16, linkedinPerWeek: 1, attendanceOnTime: 0.95, syncSince: "2026-10-29", onSchedule: 0.90,
+    creditFrom: "2026-10-20", // marketing leads from this date are BRICATO's; Oct 20–31 counts in November
     baseline: { followers: 5300, viewsPerMonth: 39000, engagementPerMonth: 1700 },
     followersGain90: 900, viewsPerMonth: 100000, engagementPerMonth: 4000, ytSubsGain90: 150,
     payout: { signed: "2026-10-22", firstMonths: 6, thenMonths: 3 },
@@ -813,7 +814,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       {l:"Qualified project inquiries", v:fmtN(r.qualified), g:grade(r.qualified, CFG.qualifiedPerMonth*M, 0.5), sub:`target ${CFG.qualifiedPerMonth} a month · marketing deals with the land, market and timeline gates ticked in the CRM`},
       {l:"Answered within 24 hrs", v:pct(r.answered24), g:grade(r.answered24, CFG.answered24, 0.947), sub:r.inquiries!=null?`${fmtN(r.answered)} of ${fmtN(r.inquiries)} inquiries · target 95%`:"Enter inquiries received and answered"},
       {l:"Passed to sales within 1 working day", v:r.qualified?`${fmtN(r.toSales)} of ${fmtN(r.qualified)}`:"—", g:r.qualified?grade((r.toSales||0)/r.qualified,1,0.9):"na", sub:"qualified leads go to sales within 1 working day"},
-      {l:"Marketing leads in the CRM", v:fmtN(r.months.some(k=>state.kpis[k]?.crm)?r.months.reduce((a,k)=>a+(state.kpis[k]?.crm?.crmLeads||0),0):null), g:"na", sub:"new CRM deals with lead source Marketing dept"},
+      {l:"Marketing leads in the CRM", v:fmtN(r.months.some(k=>state.kpis[k]?.crm)?r.months.reduce((a,k)=>a+(state.kpis[k]?.crm?.crmLeads||0),0):null), g:"na", sub:`new CRM deals with lead source Marketing dept${r.months.includes(ym(parse(CFG.trialStart)))?" · November includes BRICATO's Oct 20–31 leads":""}`},
       {l:"Consults / site visits", v:fmtN(r.months.some(k=>state.kpis[k]?.crm)?r.months.reduce((a,k)=>a+(state.kpis[k]?.crm?.consults||0),0):null), g:"na", sub:"Marketing dept deals that reached Site Inspection or later"},
       {l:"Closed deals (deal bonus)", v:fmtN(r.closedDeals), g:"na", sub:"Marketing dept deals marked Closed Sale in the CRM"},
     ]});
@@ -1143,7 +1144,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
     const php = n => "₱" + Number(n||0).toLocaleString("en-US");
     const dLong = s => s ? parse(String(s).slice(0,10)).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "";
-    const pStart = iso(p.start), pEnd = iso(addDays(p.end,-1)), periodTxt = `${monthName(p.start)} – ${monthName(addMonths(p.end,-1))}`;
+    const pStart = p.n===1 ? CFG.creditFrom : iso(p.start), pEnd = iso(addDays(p.end,-1)), periodTxt = `${monthName(p.start)} – ${monthName(addMonths(p.end,-1))}`;
     const inPeriod = s => s && s.slice(0,10) >= pStart && s.slice(0,10) <= pEnd;
     const scored = months.filter(m=>!m.future);
     const allConfirmed = months.every(m=>m.lock?.confirmedAt);
@@ -1159,7 +1160,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     // sales funnel per month from the CRM
     const funnel = months.map(m => {
       const k = m.k, t = crmMonth(k);
-      return { k, label: monthName(parse(k+"-01"),{month:"short",year:"numeric"}), future:m.future, leads:t.crmLeads, qualified:t.qualified, consults:t.consults, closed:t.closedDeals, wonValue:t.won.reduce((a,d)=>a+val(d),0) };
+      return { k, label: monthName(parse(k+"-01"),{month:"short",year:"numeric"}) + (k===ym(parse(CFG.trialStart)) ? " (incl. Oct 20–31)" : ""), future:m.future, leads:t.crmLeads, qualified:t.qualified, consults:t.consults, closed:t.closedDeals, wonValue:t.won.reduce((a,d)=>a+val(d),0) };
     });
     const sum = f => funnel.filter(x=>!x.future).reduce((a,x)=>a+x[f],0);
     const periodLeads = state.crmDeals.filter(d=>inPeriod(createdOn(d)));
@@ -1230,7 +1231,7 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
     <tbody>${funnel.map(x => `<tr><td>${esc(x.label)}</td>${x.future?`<td colspan="5" class="num" style="color:var(--muted)">Not yet</td>`:`<td class="num">${x.leads}</td><td class="num">${x.qualified}</td><td class="num">${x.consults}</td><td class="num">${x.closed}</td><td class="num">${php(x.wonValue)}</td>`}</tr>`).join("")}</tbody>
     <tfoot><tr><td>Period</td><td class="num">${sum("leads")}</td><td class="num">${sum("qualified")}</td><td class="num">${sum("consults")}</td><td class="num">${sum("closed")}</td><td class="num">${php(sum("wonValue"))}</td></tr></tfoot>
   </table>
-  <p class="note">Lead to qualified: ${rate(sum("qualified"),sum("leads"))} · Qualified to closed: ${rate(sum("closed"),sum("qualified"))} · ${lateStage.length} lead${lateStage.length===1?"":"s"} from this period at Proposal stage or later · Baseline before BRICATO: about 6 marketing leads a month (Aug–Oct 2026). Source: Prime Sales CRM, deals with lead source Marketing dept, as of ${dLong(todayISO())}.</p>
+  <p class="note">Lead to qualified: ${rate(sum("qualified"),sum("leads"))} · Qualified to closed: ${rate(sum("closed"),sum("qualified"))} · ${lateStage.length} lead${lateStage.length===1?"":"s"} from this period at Proposal stage or later · Baseline before BRICATO: about 3 marketing leads a month (Aug 1–Oct 19, 2026).${p.n===1?" Includes BRICATO's pre-launch leads from Oct 20, 2026, counted in November.":""} Source: Prime Sales CRM, deals with lead source Marketing dept, as of ${dLong(todayISO())}.</p>
 
   <h2>Qualified leads generated</h2>
   <table>
@@ -1278,8 +1279,15 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
   }
   // Qualified = land, market and timeline gates ticked (money is not required)
   const allGates = d => { const g = d.gates || {}; return !!(g.land && g.market && g.timeline); };
+  // Which month a CRM date counts in. BRICATO's pre-launch leads (from CFG.creditFrom to the trial start) count in the
+  // first trial month and are left out of the baseline month.
+  function crmMonthOf(s){
+    if (!s) return "";
+    if (s >= CFG.creditFrom && s < CFG.trialStart) return ym(parse(CFG.trialStart));
+    return s.slice(0,7);
+  }
   function crmMonth(k){
-    const inMonth = s => (s||"").slice(0,7)===k;
+    const inMonth = s => crmMonthOf((s||"").slice(0,10))===k;
     const deals = state.crmDeals;
     const created = deals.filter(d=>inMonth(new Date(d.created_at).toLocaleDateString("en-CA",{timeZone:"Asia/Manila"})));
     const won = deals.filter(d=>d.stage==="Closed Sale" && inMonth(d.won_date || reachedOn(d,"Closed Sale")));
