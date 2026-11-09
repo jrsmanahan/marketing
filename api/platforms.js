@@ -38,21 +38,41 @@ async function youtube(since) {
   const key = process.env.YOUTUBE_API_KEY, channel = process.env.YOUTUBE_CHANNEL_ID;
   if (!key || !channel) return { configured: false, items: [] };
   const base = "https://www.googleapis.com/youtube/v3/";
-  const ch = await getJSON(`${base}channels?part=contentDetails&id=${encodeURIComponent(channel)}&key=${key}`);
-  const uploads = ch.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
-  if (!uploads) throw new Error("YouTube channel not found. Check YOUTUBE_CHANNEL_ID.");
-  const ids = new Set(); let page = "", guard = 0;
-  do {
-    const r = await getJSON(`${base}playlistItems?part=contentDetails&maxResults=50&playlistId=${uploads}&key=${key}${page ? `&pageToken=${page}` : ""}`);
-    let older = 0;
-    for (const it of r.items || []) {
-      const at = it.contentDetails?.videoPublishedAt;
-      if (!at) continue;
-      if (at.slice(0, 10) < since) { older++; continue; }
-      ids.add(it.contentDetails.videoId);
+  const ch = await getJSON(`${base}channels?part=contentDetails,statistics&id=${encodeURIComponent(channel)}&key=${key}`);
+  const stats = ch.items?.[0]?.statistics || {};
+  const subscribers = stats.hiddenSubscriberCount ? null : (stats.subscriberCount != null ? +stats.subscriberCount : null);
+  if (!ch.items?.length) throw new Error("YouTube channel not found. Check YOUTUBE_CHANNEL_ID (it starts with UC).");
+  const uploads = ch.items[0].contentDetails?.relatedPlaylists?.uploads;
+  const ids = new Set();
+  let viaPlaylist = !!uploads;
+  if (viaPlaylist) {
+    let page = "", guard = 0;
+    try {
+      do {
+        const r = await getJSON(`${base}playlistItems?part=contentDetails&maxResults=50&playlistId=${uploads}&key=${key}${page ? `&pageToken=${page}` : ""}`);
+        let older = 0;
+        for (const it of r.items || []) {
+          const at = it.contentDetails?.videoPublishedAt;
+          if (!at) continue;
+          if (at.slice(0, 10) < since) { older++; continue; }
+          ids.add(it.contentDetails.videoId);
+        }
+        page = older ? "" : r.nextPageToken; // uploads are listed newest first: stop at the first video older than `since`
+      } while (page && ++guard < 10);
+    } catch (e) {
+      if (!/cannot be found|playlistNotFound|not found/i.test(String(e.message))) throw e;
+      viaPlaylist = false; // YouTube has no uploads list for this channel (e.g. no public videos yet): search instead
     }
-    page = older ? "" : r.nextPageToken; // uploads are listed newest first: stop at the first video older than `since`
-  } while (page && ++guard < 10);
+  }
+  if (!viaPlaylist) {
+    let page = "", guard = 0;
+    const after = new Date(since + "T00:00:00+08:00").toISOString();
+    do {
+      const r = await getJSON(`${base}search?part=id&type=video&order=date&maxResults=50&channelId=${encodeURIComponent(channel)}&publishedAfter=${encodeURIComponent(after)}&key=${key}${page ? `&pageToken=${page}` : ""}`);
+      for (const it of r.items || []) if (it.id?.videoId) ids.add(it.id.videoId);
+      page = r.nextPageToken;
+    } while (page && ++guard < 4);
+  }
   const items = [], list = [...ids];
   for (let i = 0; i < list.length; i += 50) {
     const v = await getJSON(`${base}videos?part=contentDetails,snippet,statistics,status&id=${list.slice(i, i + 50).join(",")}&key=${key}`);
@@ -64,7 +84,7 @@ async function youtube(since) {
         title: x.snippet.title || "", url: `https://www.youtube.com/watch?v=${x.id}`, seconds, views: +(x.statistics?.viewCount || 0) });
     }
   }
-  return { configured: true, items };
+  return { configured: true, items, subscribers };
 }
 
 async function facebook(since) {
@@ -158,7 +178,7 @@ module.exports = async (req, res) => {
     const since = /^\d{4}-\d{2}-\d{2}$/.test(q.get("since") || "") ? q.get("since") : new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10);
     const sources = {}, items = [];
     for (const [name, fn] of [["youtube", youtube], ["facebook", facebook]]) {
-      try { const r = await fn(since); sources[name] = { configured: r.configured, count: r.items.length }; items.push(...r.items); }
+      try { const r = await fn(since); sources[name] = { configured: r.configured, count: r.items.length, ...(r.subscribers != null ? { subscribers: r.subscribers } : {}) }; items.push(...r.items); }
       catch (e) { sources[name] = { configured: true, error: String(e.message || e).slice(0, 200) }; }
     }
     let insights = null;
