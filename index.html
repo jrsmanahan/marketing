@@ -708,8 +708,10 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   const pid = p => p.kind==="month" ? "m-"+ym(p.start) : p.kind==="quarter" ? "q-"+p.q : "base";
   const plabel = p => p.kind==="baseline" ? `Baseline before BRICATO (${monthName(p.start,{month:"short",year:"numeric"})})` : p.kind==="month" ? monthName(p.start) :
     `${p.q===0?"Day 90 (trial)":"Quarter "+(p.q+1)}: ${monthName(p.start,{month:"short",year:"numeric"})} – ${monthName(addMonths(p.start,2),{month:"short",year:"numeric"})}`;
-  const AUTO_FIELDS = ["qualified","closedDeals"];
-  const snapVal = (k,f) => { const a = state.kpis[k]?.crm; if (a && AUTO_FIELDS.includes(f) && a[f]!=null) return Number(a[f]); const v = state.kpis[k]?.[f]; if (v!=null && v!=="") return Number(v); if (k===BASE_KEY && f==="followers") return CFG.baseline.followers; return null; };
+  const AUTO_FIELDS = ["qualified","closedDeals"];          // from the Prime Sales CRM
+  const META_FIELDS = ["views","engagement","followers"];  // from Facebook page insights
+  const snapVal = (k,f) => { const a = state.kpis[k]?.crm; if (a && AUTO_FIELDS.includes(f) && a[f]!=null) return Number(a[f]);
+    const mt = state.kpis[k]?.meta; if (mt && META_FIELDS.includes(f) && mt[f]!=null) return Number(mt[f]); const v = state.kpis[k]?.[f]; if (v!=null && v!=="") return Number(v); if (k===BASE_KEY && f==="followers") return CFG.baseline.followers; return null; };
   const peso = n => "₱"+Number(n).toLocaleString("en-US");
 
   // weighted score from the agreement's performance matrix
@@ -864,6 +866,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
         $("snapFields").replaceChildren(...flds.map(([f,l])=>el("label",{}, l, el("input",{type:"number",min:"0",id:"s-"+f,inputmode:"numeric"}))));
         for (const [f] of flds) $("s-"+f).value = s[f] ?? (p.kind==="baseline" && f==="followers" ? CFG.baseline.followers : "");
         $("s-notes").value = s.notes ?? ""; $("s-evidence").value = s.evidence ?? "";
+        for (const f of META_FIELDS) { const inp = $("s-"+f); if (inp && s.meta && s.meta[f]!=null) { inp.value = s.meta[f]; inp.readOnly = true; inp.title = "From Facebook page insights"; inp.closest("label").append(el("span",{class:"hint",style:"font-weight:400"},"from Facebook")); } }
         for (const f of AUTO_FIELDS) { const inp = $("s-"+f); if (inp && s.crm && s.crm[f]!=null) { inp.value = s.crm[f]; inp.readOnly = true; inp.title = "From the Prime Sales CRM (Marketing dept deals)"; inp.closest("label").append(el("span",{class:"hint",style:"font-weight:400"},"from the CRM")); } }
         $("snapSaved").textContent = s.updatedAt ? `Last saved ${new Date(s.updatedAt).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}` : "Not entered yet";
       }
@@ -885,7 +888,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const k = $("snapForm").dataset.key, num = id => { const v=$(id).value; return v===""?null:Math.max(0,Number(v)); };
     const body = { month:k, notes:$("s-notes").value.trim(), evidence:$("s-evidence").value.trim(), ...Object.fromEntries(SNAP_FIELDS.filter(([f])=>$("s-"+f)).map(([f])=>[f, num("s-"+f)])) };
     $("snapSave").disabled = true;
-    for (const f of AUTO_FIELDS) if ($("s-"+f)?.readOnly) delete body[f];
+    for (const f of [...AUTO_FIELDS, ...META_FIELDS]) if ($("s-"+f)?.readOnly) delete body[f];
     try { await db.collection("kpis").doc(k).set({...body, ...stamp()}, { merge:true }); delete $("snapForm").dataset.dirty; toast("Numbers saved"); } catch(e){ failed(e); }
     finally { $("snapSave").disabled = false; }
   });
@@ -1403,12 +1406,29 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
         writes.slice(i,i+400).forEach(w => w.kind==="update" ? b.set(db.collection("activities").doc(w.id), w.data, {merge:true}) : b.set(db.collection("activities").doc(w.id), w.data, {merge:true}));
         await b.commit(); }
       const result = { matched: writes.filter(w=>w.kind==="update").length, added: writes.filter(w=>w.kind==="create").length };
-      await ref.set({ lastRun:Date.now(), runningUntil:0, sources:data.sources||{}, lastResult:result, lastError:"", by:me }, { merge:true });
+      // Facebook page insights → month-end KPI numbers. Months that start before `since` are only partly covered,
+      // so for those only the month-end follower count is saved.
+      const ins = data.insights || {};
+      if (ins.months) for (const [k, v] of Object.entries(ins.months)) {
+        const full = k+"-01" >= since, meta = { updatedAt: Date.now() };
+        if (full && v.views!=null) meta.views = v.views;
+        if (full && v.engagement!=null) meta.engagement = v.engagement;
+        if (v.followers!=null) meta.followers = v.followers;
+        if (Object.keys(meta).length > 1) await db.collection("kpis").doc(k).set({ month:k, meta }, { merge:true });
+      }
+      const sources = { ...(data.sources||{}), insights: ins.configured ? { configured:true, used:ins.used||{}, errors:ins.errors||{}, count:Object.keys(ins.used||{}).length } : { configured:false } };
+      await ref.set({ lastRun:Date.now(), runningUntil:0, sources, lastResult:result, lastError:"", by:me }, { merge:true });
       if (force) toast(`Checked: ${result.matched} marked Posted, ${result.added} added`);
     } catch(e) {
       await ref.set({ runningUntil:0, lastError:String(e.message||e), lastErrorAt:Date.now(), lastRun:Date.now() }, { merge:true }).catch(()=>{});
       if (force) toast(String(e.message||e));
     } finally { syncing = false; render(); }
+  }
+  function insightsTag(x){
+    if (!x || !x.configured) return el("span",{class:"sync-off"},"Page stats: not set up");
+    const got = Object.keys(x.used||{}), missing = ["views","engagement","followers"].filter(k=>!got.includes(k));
+    if (!missing.length) return el("span",{class:"sync-ok"},"Page stats ✓");
+    return el("span",{class:got.length?"sync-off":"sync-err", title:Object.values(x.errors||{}).join("\n")}, got.length ? `Page stats: missing ${missing.join(", ")}` : "Page stats: error (hover)");
   }
   function syncLine(){
     const s = state.reference?.platformSync || {}, src = s.sources || {};
@@ -1417,7 +1437,7 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
       return x.configured ? el("span",{class:"sync-ok"}, `${name} ✓ ${x.count??0}`) : el("span",{class:"sync-off"}, `${name}: not set up`); };
     return [
       el("span",{}, syncing ? "Checking platforms…" : s.lastRun ? `Platforms checked ${new Date(s.lastRun).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}` : "Platforms not checked yet"),
-      tag("YouTube","youtube"), tag("Facebook","facebook"), el("span",{class:"sync-off"},"LinkedIn: counted from the planner"),
+      tag("YouTube","youtube"), tag("Facebook","facebook"), insightsTag(src.insights), el("span",{class:"sync-off"},"LinkedIn: counted from the planner"),
       s.lastError ? el("span",{class:"sync-err"}, s.lastError) : null,
       canWrite ? el("button",{type:"button",class:"small",disabled:syncing,onclick:()=>platformSync(true)},"Check now") : null ];
   }
