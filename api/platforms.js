@@ -106,6 +106,50 @@ async function facebook(since) {
   return { configured: true, items };
 }
 
+// Page insights by month (Manila time): views, engagement, and followers at month end.
+// Meta renamed several Page metrics in late 2025, so each figure tries the current name first, then the older one.
+const INSIGHT_METRICS = {
+  views:      ["page_media_view", "page_impressions"],
+  engagement: ["page_post_engagements"],
+  followers:  ["page_follows", "page_fans"],          // lifetime totals per day; month end = last value
+};
+async function facebookInsights(since) {
+  const page = process.env.META_PAGE_ID, token = process.env.META_PAGE_TOKEN;
+  if (!page || !token) return { configured: false };
+  const g = `https://graph.facebook.com/${process.env.META_API_VERSION || "v23.0"}/`;
+  const start = new Date(since + "T00:00:00+08:00").getTime() / 1000, end = Math.floor(Date.now() / 1000);
+  const dayOf = endTime => new Date(new Date(endTime).getTime() - 12 * 3600e3).toISOString().slice(0, 10); // value ending at end_time belongs to the day before
+  const months = {}, used = {}, errors = {};
+  for (const [key, names] of Object.entries(INSIGHT_METRICS)) {
+    for (const metric of names) {
+      try {
+        const values = [];
+        for (let s = start; s < end; s += 89 * 86400) { // Meta allows about 90 days per request
+          const u = Math.min(end, s + 89 * 86400);
+          const r = await getJSON(`${g}${page}/insights?metric=${metric}&period=day&since=${Math.floor(s)}&until=${u}&access_token=${encodeURIComponent(token)}`);
+          values.push(...(r.data?.[0]?.values || []));
+        }
+        if (!values.length) throw new Error("no data returned");
+        for (const v of values) {
+          const d = dayOf(v.end_time), m = d.slice(0, 7), n = typeof v.value === "number" ? v.value : 0;
+          months[m] = months[m] || {};
+          if (key === "followers") { if (!months[m]._fd || d >= months[m]._fd) { months[m].followers = n; months[m]._fd = d; } }
+          else months[m][key] = (months[m][key] || 0) + n;
+        }
+        used[key] = metric; delete errors[key]; break;
+      } catch (e) { errors[key] = `${metric}: ${String(e.message || e).slice(0, 140)}`; }
+    }
+  }
+  // Fallback for followers: the page's current follower count, for this month only
+  if (!used.followers) {
+    try { const p = await getJSON(`${g}${page}?fields=followers_count&access_token=${encodeURIComponent(token)}`);
+      if (typeof p.followers_count === "number") { const m = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 7); months[m] = months[m] || {}; months[m].followers = p.followers_count; used.followers = "followers_count"; delete errors.followers; }
+    } catch (e) {}
+  }
+  for (const m of Object.values(months)) delete m._fd;
+  return { configured: true, months, used, errors };
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   try {
@@ -117,7 +161,9 @@ module.exports = async (req, res) => {
       try { const r = await fn(since); sources[name] = { configured: r.configured, count: r.items.length }; items.push(...r.items); }
       catch (e) { sources[name] = { configured: true, error: String(e.message || e).slice(0, 200) }; }
     }
-    res.status(200).json({ since, sources, items });
+    let insights = null;
+    try { insights = await facebookInsights(since); } catch (e) { insights = { configured: true, errors: { all: String(e.message || e).slice(0, 200) } }; }
+    res.status(200).json({ since, sources, items, insights });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e).slice(0, 200) });
   }
