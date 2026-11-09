@@ -709,7 +709,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   const plabel = p => p.kind==="baseline" ? `Baseline before BRICATO (${monthName(p.start,{month:"short",year:"numeric"})})` : p.kind==="month" ? monthName(p.start) :
     `${p.q===0?"Day 90 (trial)":"Quarter "+(p.q+1)}: ${monthName(p.start,{month:"short",year:"numeric"})} – ${monthName(addMonths(p.start,2),{month:"short",year:"numeric"})}`;
   const AUTO_FIELDS = ["qualified","closedDeals"];          // from the Prime Sales CRM
-  const META_FIELDS = ["views","engagement","followers"];  // from Facebook page insights
+  const META_FIELDS = ["views","engagement","followers","ytSubs"];  // from Facebook page insights and YouTube
   const snapVal = (k,f) => { const a = state.kpis[k]?.crm; if (a && AUTO_FIELDS.includes(f) && a[f]!=null) return Number(a[f]);
     const mt = state.kpis[k]?.meta; if (mt && META_FIELDS.includes(f) && mt[f]!=null) return Number(mt[f]); const v = state.kpis[k]?.[f]; if (v!=null && v!=="") return Number(v); if (k===BASE_KEY && f==="followers") return CFG.baseline.followers; return null; };
   const peso = n => "₱"+Number(n).toLocaleString("en-US");
@@ -866,7 +866,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
         $("snapFields").replaceChildren(...flds.map(([f,l])=>el("label",{}, l, el("input",{type:"number",min:"0",id:"s-"+f,inputmode:"numeric"}))));
         for (const [f] of flds) $("s-"+f).value = s[f] ?? (p.kind==="baseline" && f==="followers" ? CFG.baseline.followers : "");
         $("s-notes").value = s.notes ?? ""; $("s-evidence").value = s.evidence ?? "";
-        for (const f of META_FIELDS) { const inp = $("s-"+f); if (inp && s.meta && s.meta[f]!=null) { inp.value = s.meta[f]; inp.readOnly = true; inp.title = "From Facebook page insights"; inp.closest("label").append(el("span",{class:"hint",style:"font-weight:400"},"from Facebook")); } }
+        for (const f of META_FIELDS) { const inp = $("s-"+f); if (inp && s.meta && s.meta[f]!=null) { inp.value = s.meta[f]; inp.readOnly = true; inp.title = f==="ytSubs" ? "From YouTube" : "From Facebook page insights"; inp.closest("label").append(el("span",{class:"hint",style:"font-weight:400"}, f==="ytSubs" ? "from YouTube" : "from Facebook")); } }
         for (const f of AUTO_FIELDS) { const inp = $("s-"+f); if (inp && s.crm && s.crm[f]!=null) { inp.value = s.crm[f]; inp.readOnly = true; inp.title = "From the Prime Sales CRM (Marketing dept deals)"; inp.closest("label").append(el("span",{class:"hint",style:"font-weight:400"},"from the CRM")); } }
         $("snapSaved").textContent = s.updatedAt ? `Last saved ${new Date(s.updatedAt).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}` : "Not entered yet";
       }
@@ -1416,6 +1416,9 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
         if (v.followers!=null) meta.followers = v.followers;
         if (Object.keys(meta).length > 1) await db.collection("kpis").doc(k).set({ month:k, meta }, { merge:true });
       }
+      // YouTube only gives today's subscriber count, so it's saved to the current month; the last check of the month is the month-end figure
+      const subs = data.sources?.youtube?.subscribers;
+      if (subs != null) await db.collection("kpis").doc(ym(new Date())).set({ month:ym(new Date()), meta:{ ytSubs:subs, ytSubsAt:Date.now() } }, { merge:true });
       const sources = { ...(data.sources||{}), insights: ins.configured ? { configured:true, used:ins.used||{}, errors:ins.errors||{}, count:Object.keys(ins.used||{}).length } : { configured:false } };
       await ref.set({ lastRun:Date.now(), runningUntil:0, sources, lastResult:result, lastError:"", by:me }, { merge:true });
       if (force) toast(`Checked: ${result.matched} marked Posted, ${result.added} added`);
