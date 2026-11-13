@@ -94,6 +94,15 @@ td.att-ontime{color:var(--ok)} td.att-late{color:var(--warn);font-weight:600} td
 .dd{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
 .day.today .dn{color:var(--brand)}
 .holiday{font-size:11px;color:var(--red);font-weight:600;padding:0 4px}
+.whobox{grid-column:2;border:none;padding:0;margin:0;display:grid;gap:4px;min-width:0}
+.whobox legend{font-size:12.5px;font-weight:600;color:var(--muted);padding:0;margin-bottom:4px}
+#f-owners-list{display:flex;flex-wrap:wrap;gap:6px}
+.whochip{display:inline-flex!important;align-items:center;gap:5px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600;color:var(--fg)!important;cursor:pointer;background:var(--bg)}
+.whochip input{width:auto;margin:0}
+.whochip:has(input:checked){border-color:var(--brand);background:color-mix(in srgb,var(--brand) 12%,transparent)}
+@media (max-width:480px){.whobox{grid-column:1}}
+.dayposts{border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:11.5px;padding:4px 6px;text-align:left;border-radius:6px}
+.dayposts:hover{color:var(--fg);border-color:var(--brand)}
 .add-day{border:1px dashed var(--line);background:transparent;color:var(--muted);font-size:12.5px;padding:5px;margin-top:auto}
 .card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--pc,var(--muted));border-radius:8px;padding:7px 8px;display:grid;gap:4px;text-align:left;width:100%;min-width:0}
 .day.today .card{background:var(--bg)}
@@ -104,7 +113,7 @@ td.att-ontime{color:var(--ok)} td.att-late{color:var(--warn);font-weight:600} td
 .card.done{opacity:.62}
 .card.done .t{text-decoration:line-through}
 .st{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px;border:1px solid currentColor;white-space:nowrap}
-.st-todo{color:var(--muted)} .st-doing{color:var(--brand)} .st-review{color:var(--review)} .st-jreview{color:var(--warn)} .st-scheduled{color:var(--sched)} .st-done{color:var(--ok)}
+.st-todo{color:var(--muted)} .st-doing,.st-cedit{color:var(--c-christian)} .st-yedit{color:var(--c-yuan)} .st-review{color:var(--review)} .st-jreview{color:var(--warn)} .st-scheduled{color:var(--sched)} .st-done{color:var(--ok)}
 .type{font-weight:600;color:var(--fg)}
 .seg{font-size:10.5px;padding:1px 5px;border-radius:4px;background:var(--sunk);white-space:nowrap}
 .rail{display:grid;gap:12px}
@@ -257,23 +266,24 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
         <button class="primary" id="addBtn">+ Add activity</button>
       </div>
     </div>
+    <div id="filterNote" class="notice" hidden style="border-left-color:var(--warn);padding:8px 12px"></div>
     <section class="stats" id="stats" aria-label="This week at a glance"></section>
     <div id="syncLine" class="bar" style="justify-content:flex-start;gap:6px 12px;font-size:12.5px;color:var(--muted);margin-top:-6px"></div>
     <div class="main">
       <section class="board" id="board" aria-label="Week board"></section>
       <aside class="rail">
-        <div class="panel"><h3>For Anne review <span id="revCount">0</span></h3><div class="list" id="reviewList"></div></div>
-        <div class="panel"><h3>For Jacinto approval <span id="jrevCount">0</span></h3><div class="list" id="jreviewList"></div></div>
+        <div class="panel"><h3>Anne Review <span id="revCount">0</span></h3><div class="list" id="reviewList"></div></div>
+        <div class="panel"><h3>Jacinto Approval <span id="jrevCount">0</span></h3><div class="list" id="jreviewList"></div></div>
         <div class="panel"><h3>Overdue <span id="odCount">0</span></h3><div class="list" id="overdueList"></div></div>
         <div class="panel"><h3>Status flow</h3>
           <div class="legend">
             <div><span class="st st-todo">Not started</span></div>
-            <div><span class="st st-doing">Editing</span> shoot, edit, write</div>
-            <div><span class="st st-review">For Anne review</span> message, brand and caption</div>
-            <div><span class="st st-jreview">For Jacinto approval</span> final go signal. Doc Jorge also approves advertorials, client stories, projects, pricing</div>
-            <div><span class="st st-scheduled">Post scheduled</span> queued in Meta</div>
-            <div><span class="st st-done">Done / Posted</span> live or completed</div>
-            <div>Sending an item from either review back to Editing counts as one revision.</div>
+            <div><span class="st st-cedit">Christian Edit</span> <span class="st st-yedit">Yuan Edit</span> shooting or editing</div>
+            <div><span class="st st-review">Anne Review</span> message, brand and caption</div>
+            <div><span class="st st-jreview">Jacinto Approval</span> final go signal. Doc Jorge also approves advertorials, client stories, projects, pricing</div>
+            <div><span class="st st-scheduled">Scheduled</span> queued in Meta</div>
+            <div><span class="st st-done">Done</span> posted or completed</div>
+            <div>Sending an item from either review back to Christian Edit or Yuan Edit counts as one revision.</div>
           </div>
           <label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin-top:10px"><input type="checkbox" id="hideDone" style="width:auto"> Hide posted and done</label>
         </div>
@@ -385,7 +395,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       <input id="f-title" maxlength="200" placeholder="e.g. Shoot B-roll at the Quezon breeder farm">
     </label>
     <label>Type<select id="f-type"></select></label>
-    <label>Who<select id="f-owner"></select></label>
+    <fieldset class="whobox" id="f-owners"><legend>Who</legend><div id="f-owners-list"></div></fieldset>
     <label>Date<input type="date" id="f-date" required></label>
     <label>Time (optional)<input type="time" id="f-time"></label>
     <label>Status<select id="f-status"></select></label>
@@ -400,10 +410,12 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
         <label style="display:flex;gap:6px;align-items:center;color:var(--fg)"><input type="checkbox" id="f-pl-facebook" style="width:auto"> Facebook</label>
         <label style="display:flex;gap:6px;align-items:center;color:var(--fg)"><input type="checkbox" id="f-pl-youtube" style="width:auto"> YouTube</label>
         <label style="display:flex;gap:6px;align-items:center;color:var(--fg)"><input type="checkbox" id="f-pl-linkedin" style="width:auto"> LinkedIn</label>
+        <label style="display:flex;gap:6px;align-items:center;color:var(--fg)"><input type="checkbox" id="f-pl-website" style="width:auto"> Website</label>
       </div>
       <label id="lw-facebook">Facebook link<input id="f-link" maxlength="400" placeholder="https://www.facebook.com/…"></label>
       <label id="lw-youtube">YouTube link<input id="f-link-youtube" maxlength="400" placeholder="https://www.youtube.com/watch?v=…"></label>
       <label id="lw-linkedin">LinkedIn link<input id="f-link-linkedin" maxlength="400" placeholder="https://www.linkedin.com/…"></label>
+      <label id="lw-website">Website link<input id="f-link-website" maxlength="400" placeholder="https://primeagritech.com/…"></label>
       <p class="hint" id="f-pl-hint" style="margin:0"></p>
     </fieldset>
     <label class="post-only">Views<input type="number" min="0" id="f-views" inputmode="numeric"></label>
@@ -446,7 +458,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     trialStart: "2026-11-01",
     reelsPerWeek: 2, photosPerWeek: 2, breederShare: 0.70,
     // Marketing Services Agreement, Oct 22 2026
-    reelsPerMonth: 8, photosPerMonth: 8, ytPerMonth: 2, postsPerMonth: 16, linkedinPerWeek: 1, attendanceOnTime: 0.95, syncSince: "2026-10-29", onSchedule: 0.90,
+    reelsPerMonth: 8, photosPerMonth: 8, ytPerMonth: 2, postsPerMonth: 16, linkedinPerWeek: 1, websitePerWeek: 1, attendanceOnTime: 0.95, syncSince: "2026-10-29", onSchedule: 0.90,
     creditFrom: "2026-10-20", // marketing leads from this date are BRICATO's; Oct 20–31 counts in November
     baseline: { followers: 5300, viewsPerMonth: 39000, engagementPerMonth: 1700 },
     followersGain90: 900, viewsPerMonth: 100000, engagementPerMonth: 4000, ytSubsGain90: 150,
@@ -470,27 +482,31 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     {id:"Yuan", role:"B-roll, drone", c:"--c-yuan"},
   ];
   // Post formats, and the platforms each one can go to (long-form always goes to YouTube and Facebook)
-  const POST_TYPES = ["Reel post","Photo post","Long-form video"];
-  const PLATFORMS = [{k:"facebook",l:"Facebook",ab:"FB"},{k:"youtube",l:"YouTube",ab:"YT"},{k:"linkedin",l:"LinkedIn",ab:"LI"}];
-  const ALLOWED_PLATFORMS = {"Reel post":["facebook"], "Photo post":["facebook","linkedin"], "Long-form video":["youtube","facebook"]};
-  const DEFAULT_PLATFORMS = {"Reel post":["facebook"], "Photo post":["facebook"], "Long-form video":["youtube","facebook"]};
-  const fmtLabel = t => t==="Reel post" ? "Reel" : t==="Photo post" ? "Photo" : t==="Long-form video" ? "Long-form" : t;
+  const POST_TYPES = ["Reel post","Photo post","Long-form video","Article"];
+  const PLATFORMS = [{k:"facebook",l:"Facebook",ab:"FB"},{k:"youtube",l:"YouTube",ab:"YT"},{k:"linkedin",l:"LinkedIn",ab:"LI"},{k:"website",l:"Website",ab:"WEB"}];
+  const ALLOWED_PLATFORMS = {"Reel post":["facebook"], "Photo post":["facebook","linkedin"], "Long-form video":["youtube","facebook","website"], "Article":["website","linkedin","facebook"]};
+  const DEFAULT_PLATFORMS = {"Reel post":["facebook"], "Photo post":["facebook"], "Long-form video":["youtube","facebook"], "Article":["website"]};
+  const fmtLabel = t => t==="Reel post" ? "Reel" : t==="Photo post" ? "Photo" : t==="Long-form video" ? "Long-form" : t==="Article" ? "Article" : t;
   const platformsOf = p => Array.isArray(p.platforms) && p.platforms.length ? p.platforms : (DEFAULT_PLATFORMS[p.type] || []);
   const onPlat = (p, k) => platformsOf(p).includes(k);
   // LinkedIn can't be checked automatically, so a LinkedIn post counts as live only once its LinkedIn link is filled in
   const liveOnLinkedIn = p => onPlat(p,"linkedin") && !!(p.links?.linkedin) && (published(p) || platformsOf(p).length===1);
+  // The website can't be checked automatically either: an item counts as live on the website once its website link is filled in
+  const liveOnWebsite = p => onPlat(p,"website") && !!(p.links?.website) && (published(p) || platformsOf(p).length===1);
   const platAbbr = p => platformsOf(p).map(k=>PLATFORMS.find(x=>x.k===k)?.ab).filter(Boolean).join(" · ");
   // older records: "YouTube video" → long-form; "LinkedIn post" → photo on LinkedIn; single link → Facebook link
   function normPost(x){
     if (x.type==="YouTube video") { x.type = "Long-form video"; if (!x.platforms) x.platforms = ["youtube","facebook"]; if (!x.links && x.link) x.links = { youtube:x.link }; }
     if (x.type==="LinkedIn post") { x.type = "Photo post"; if (!x.platforms) x.platforms = ["linkedin"]; if (!x.links && x.link) x.links = { linkedin:x.link }; }
+    if (x.type==="Write-up / SEO") { x.type = "Article"; if (!x.platforms) x.platforms = ["website"]; if (!x.links) x.links = x.link ? { website:x.link } : {}; }
     if (POST_TYPES.includes(x.type)) { if (!x.links) x.links = x.link ? { facebook:x.link } : {}; }
     return x;
   }
-  const TYPES = [...POST_TYPES,"Shoot","Edit","Write-up / SEO","Website / LinkedIn","Inquiry follow-up","Meeting","Training","Admin"];
-  // Status flow: Not started → Editing → For Anne review → For Jacinto approval → Post scheduled → Done / Posted
-  const STATUSES = ["todo","doing","review","jreview","scheduled","done"];
-  const label = (s, isPost) => ({todo:"Not started",doing:isPost?"Editing":"In progress",review:"For Anne review",jreview:"For Jacinto approval",scheduled:isPost?"Post scheduled":"Scheduled",done:isPost?"Posted":"Done"})[s] || s;
+  const TYPES = [...POST_TYPES,"Shoot","Edit","Website / LinkedIn","Inquiry follow-up","Meeting","Training","Admin"];
+  // Status flow: Not started → Christian Edit / Yuan Edit → Anne Review → Jacinto Approval → Scheduled → Done
+  const STATUSES = ["todo","cedit","yedit","review","jreview","scheduled","done"];
+  const label = (s) => ({todo:"Not started",cedit:"Christian Edit",yedit:"Yuan Edit",doing:"Christian Edit",review:"Anne Review",jreview:"Jacinto Approval",scheduled:"Scheduled",done:"Done"})[s] || s;
+  const isEditing = s => s==="cedit" || s==="yedit" || s==="doing";
   const inApproval = s => s==="review" || s==="jreview";
   // Target segments. Breeder vs all Broiler types is the 70/30 split.
   const SEGMENTS = ["Breeder","Broiler - Small scale","Broiler - CCS3","Broiler - CCS4","Broiler - MTC"];
@@ -521,6 +537,10 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   const fmtTime = t => { if(!t) return ""; const [h,m]=t.split(":").map(Number); return `${((h+11)%12)+1}:${pad(m)}${h<12?"am":"pm"}`; };
   const short = d => parse(d).toLocaleDateString("en-US",{month:"short",day:"numeric"});
   const WHOLE_TEAM = "Whole team";
+  // An activity can belong to several people, or to the whole team. Older records keep a single "owner".
+  const ownersOf = x => Array.isArray(x.owners) && x.owners.length ? x.owners : (x.owner ? [x.owner] : []);
+  const ownerText = x => { const o = ownersOf(x); return o.includes(WHOLE_TEAM) ? WHOLE_TEAM : o.join(", "); };
+  const ownsIt = (x, name) => { const o = ownersOf(x); return o.includes(name) || o.includes(WHOLE_TEAM); };
   const pColor = name => { if (name===WHOLE_TEAM) return "var(--navy)"; const p = PEOPLE.find(p=>p.id===name); return p ? `var(${p.c})` : "var(--muted)"; };
   const isPost = it => POST_TYPES.includes(it.type);
   const fmtN = n => n==null||isNaN(n) ? "—" : Number(n).toLocaleString("en-US");
@@ -551,7 +571,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     for (const k of kids.flat()) if (k!=null && k!==false) e.append(k.nodeType ? k : document.createTextNode(k));
     return e;
   }
-  const visible = it => (state.who==="All" || it.owner===state.who || it.owner===WHOLE_TEAM);
+  const visible = it => (state.who==="All" || ownsIt(it, state.who));
   const titleOf = it => it.title || (isPost(it) ? `${it.type.replace(" post","")} for ${it.segment||"—"}, topic not picked yet` : "Untitled");
 
   // ---------- views ----------
@@ -576,12 +596,12 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   }
 
   function cardFor(it, showDate){
-    const c = el("button",{class:"card"+(published(it)?" done":""), style:`--pc:${pColor(it.owner)}`, type:"button", onclick:()=>openForm(it)},
+    const c = el("button",{class:"card"+(published(it)?" done":""), style:`--pc:${ownersOf(it).length>1 ? "var(--navy)" : pColor(ownersOf(it)[0])}`, type:"button", onclick:()=>openForm(it)},
       el("span",{class:"t"+(it.title?"":" tbd")}, titleOf(it)),
       el("span",{class:"meta"},
         showDate ? el("span",{class:"time"}, short(it.date)) : null,
         it.time ? el("span",{class:"time"}, fmtTime(it.time)) : null,
-        el("span",{class:"type"}, isPost(it) ? fmtLabel(it.type) : it.type), isPost(it) ? el("span",{}, platAbbr(it)) : null, el("span",{}, it.owner)),
+        el("span",{class:"type"}, isPost(it) ? fmtLabel(it.type) : it.type), isPost(it) ? el("span",{}, platAbbr(it)) : null, el("span",{}, ownerText(it))),
       el("span",{class:"meta"}, el("span",{class:"st st-"+it.status}, label(it.status,isPost(it))), it.segment ? el("span",{class:"seg"}, it.segment) : null, it.needsDocJorge && !published(it) ? el("span",{class:"seg",style:"color:var(--red)"},"Doc Jorge") : null));
     return c;
   }
@@ -595,11 +615,19 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     $("hideDone").checked = state.hideDone;
     const s = iso(wk), e = iso(end), today = todayISO();
     const inWeek = state.items.filter(it => it.date>=s && it.date<=e);
-    const mine = inWeek.filter(visible);
+    const mine = inWeek.filter(visible).filter(it=>!isPost(it));   // posts live in the Content calendar
+    const tasksInWeek = inWeek.filter(it=>!isPost(it));
+    // say when the person filter or "Hide posted and done" is hiding items this week
+    const hiddenByWho = tasksInWeek.length - mine.length, hiddenDone = state.hideDone ? mine.filter(published).length : 0;
+    const fn = $("filterNote");
+    if (fn) { fn.replaceChildren(...(hiddenByWho || hiddenDone ? [
+      `${[hiddenByWho ? `${hiddenByWho} item${hiddenByWho===1?"":"s"} for other people` : "", hiddenDone ? `${hiddenDone} posted or done` : ""].filter(Boolean).join(" and ")} hidden this week.`,
+      " ", el("button",{type:"button",class:"linkbtn",onclick:()=>{ state.who="All"; state.hideDone=false; saveView(); render(); }},"Show everything") ] : [])); fn.hidden = !(hiddenByWho || hiddenDone); }
     const wp = (t, k) => inWeek.filter(i=>i.type===t && onPlat(i,k) && !isHolidayPost(i));
     const holWeek = inWeek.filter(i=>isPost(i) && isHolidayPost(i));
     const fbReels = wp("Reel post","facebook"), fbPhotos = wp("Photo post","facebook"), fbLong = wp("Long-form video","facebook"), ytLong = wp("Long-form video","youtube");
     const liPhotos = inWeek.filter(i=>isPost(i) && onPlat(i,"linkedin") && !isHolidayPost(i));
+    const webItems = inWeek.filter(i=>isPost(i) && onPlat(i,"website") && !isHolidayPost(i));
     const mk = ym(wk), ytMonth = state.items.filter(i=>i.type==="Long-form video" && onPlat(i,"youtube") && i.date.startsWith(mk));
     const meter = (n,goal) => { const i=el("i",{style:`width:${Math.min(100,Math.round(n/goal*100))}%`}); if(n>=goal) i.className="full"; return el("div",{class:"meter"},i); };
     const prow = (lab, list, goal, note, isLive = published) => { const n = list.filter(isLive).length;
@@ -612,18 +640,25 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"YouTube"),
         prow("Long-form this week", ytLong, null, `${ytLong.length} planned`), prow(`Long-form in ${monthName(wk,{month:"long"})}`, ytMonth, CFG.ytPerMonth, `target ${CFG.ytPerMonth} a month`)),
       el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"LinkedIn this week"),
-        prow("Photos", liPhotos, CFG.linkedinPerWeek, `${liPhotos.length} planned · counts once the LinkedIn link is added`, liveOnLinkedIn)),
-      el("div",{class:"stat"}, el("span",{class:"eyebrow"}, state.who==="All"?"Team activities":`${state.who}'s activities`), el("b",{}, String(mine.length)), el("small",{}, `${mine.filter(published).length} done · ${mine.filter(i=>!published(i)).length} open`)),
+        prow("Posts", liPhotos, CFG.linkedinPerWeek, `${liPhotos.length} planned · counts once the LinkedIn link is added`, liveOnLinkedIn)),
+      el("div",{class:"stat plat"}, el("span",{class:"eyebrow"},"Website this week"),
+        prow("Articles", webItems.filter(i=>i.type==="Article"), CFG.websitePerWeek, `${webItems.filter(i=>i.type==="Article").length} planned · counts once the website link is added`, liveOnWebsite),
+        webItems.some(i=>i.type!=="Article") ? el("small",{class:"hint"}, `+ ${webItems.filter(i=>i.type!=="Article").length} video${webItems.filter(i=>i.type!=="Article").length===1?"":"s"} embedded`) : null),
+      el("div",{class:"stat"}, el("span",{class:"eyebrow"}, state.who==="All"?"Team tasks":`${state.who}'s tasks`), el("b",{}, String(mine.length)), el("small",{}, `${mine.filter(published).length} done · ${mine.filter(i=>!published(i)).length} open`)),
       el("div",{class:"stat"}, el("span",{class:"eyebrow"},"Shoots this week"), el("b",{}, String(inWeek.filter(i=>i.type==="Shoot").length)), el("small",{}, `${inWeek.filter(i=>i.type==="Shoot" && published(i)).length} done · farm visits, talks, expos, site work`)));
     const board = $("board"); board.replaceChildren();
     for (let i=0;i<7;i++){
       const d = addDays(wk,i), ds = iso(d);
+      const dayPosts = inWeek.filter(it=>isPost(it) && it.date===ds);
       const items = mine.filter(it=>it.date===ds && !(state.hideDone && published(it)))
         .sort((a,b)=>(a.time||"99").localeCompare(b.time||"99") || (a.createdAt||0)-(b.createdAt||0));
       board.append(el("div",{class:"day"+(ds===today?" today":"")},
         el("div",{class:"dayhead"}, el("span",{class:"dn"}, DOW[i]+(ds===today?" · Today":"")), el("span",{class:"dd"}, d.toLocaleDateString("en-US",{month:"short",day:"numeric"}))),
         HOLIDAYS[ds] ? el("div",{class:"holiday"}, "PH holiday: "+HOLIDAYS[ds]) : null,
         items.map(it=>cardFor(it,false)),
+        dayPosts.length ? el("button",{type:"button",class:"dayposts",title:dayPosts.map(p=>`${fmtLabel(p.type)}: ${p.title||"topic not picked"} (${label(p.status,true)})`).join("\n"),
+          onclick:()=>{ state.month = new Date(d.getFullYear(), d.getMonth(), 1); setView("calendar"); }},
+          `${dayPosts.length} post${dayPosts.length===1?"":"s"} · ${dayPosts.filter(published).length} live ›`) : null,
         !state.loaded ? el("div",{class:"empty"},"Loading…") : null,
         canWrite ? el("button",{class:"add-day",type:"button",onclick:()=>openForm(null,{date:ds})},"+ Add") : null));
     }
@@ -663,7 +698,7 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const subs = [...SEGMENTS.filter(isBroiler), LEGACY_BROILER].map(s=>[s, reg.filter(p=>p.segment===s).length]).filter(([s,n])=>n||s!==LEGACY_BROILER);
     $("calSum").replaceChildren(
       el("span",{},"Posts ", el("b",{},posts.length)), el("span",{},"Reels ", el("b",{},posts.filter(p=>p.type==="Reel post" && !isHolidayPost(p)).length)),
-      el("span",{},"Photos ", el("b",{},posts.filter(p=>p.type==="Photo post" && !isHolidayPost(p)).length)), el("span",{},"Long-form ", el("b",{},posts.filter(p=>p.type==="Long-form video").length)), el("span",{},"On LinkedIn ", el("b",{},posts.filter(p=>onPlat(p,"linkedin")).length)), el("span",{},"Breeder ", el("b",{},br.length)),
+      el("span",{},"Photos ", el("b",{},posts.filter(p=>p.type==="Photo post" && !isHolidayPost(p)).length)), el("span",{},"Long-form ", el("b",{},posts.filter(p=>p.type==="Long-form video").length)), el("span",{},"On LinkedIn ", el("b",{},posts.filter(p=>onPlat(p,"linkedin")).length)), el("span",{},"Articles ", el("b",{},posts.filter(p=>p.type==="Article").length)), el("span",{},"Breeder ", el("b",{},br.length)),
       el("span",{},"All broiler ", el("b",{},reg.filter(p=>isBroiler(p.segment)).length)), ...subs.map(([s,n])=>el("span",{},s.replace("Broiler - ","↳ ")+" ", el("b",{},n))), el("span",{},"All Audiences ", el("b",{},posts.length-reg.length)), el("span",{},"Holiday ", el("b",{},posts.filter(isHolidayPost).length)),
       el("span",{},"Breeder share of regular posts ", el("b",{}, reg.length?pct(br.length/reg.length):"—")),
       el("span",{},"Posted ", el("b",{}, posts.filter(published).length)));
@@ -747,13 +782,16 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const fEnd = snapVal(lastKey,"followers"), fStart = snapVal(prevKey,"followers");
     const yEnd = snapVal(lastKey,"ytSubs"), yStart = snapVal(prevKey,"ytSubs");
     const inquiries = sum("inquiries"), answered = sum("answered24");
-    const people = PEOPLE.map(pp => { const mine = inP.filter(x=>(x.owner===pp.id || x.owner===WHOLE_TEAM) && x.date<=upto); const done = mine.filter(published).length; return {id:pp.id, due:mine.length, done, open:mine.length-done}; });
+    const people = PEOPLE.map(pp => { const mine = inP.filter(x=>ownsIt(x, pp.id) && x.date<=upto); const done = mine.filter(published).length; return {id:pp.id, due:mine.length, done, open:mine.length-done}; });
     const r = { p, s, e, upto, months, planned:posts.length, due:due.length, pub:pub.length, regPub:regPub.length,
       reels:pub.filter(x=>x.type==="Reel post" && onPlat(x,"facebook") && !isHolidayPost(x)).length,
       photos:pub.filter(x=>x.type==="Photo post" && onPlat(x,"facebook") && !isHolidayPost(x)).length,
       yt:pub.filter(x=>x.type==="Long-form video" && onPlat(x,"youtube")).length,
       fbLong:pub.filter(x=>x.type==="Long-form video" && onPlat(x,"facebook")).length,
       linkedin:inP.filter(x=>liveOnLinkedIn(x) && !isHolidayPost(x)).length,
+      articles:inP.filter(x=>x.type==="Article" && liveOnWebsite(x)).length,
+      articlesTarget: Math.round(((addMonths(p.start,p.months)-p.start)/864e5)/7*CFG.websitePerWeek),
+      articlesDue: Math.max(0, Math.floor(((parse(upto)-p.start)/864e5+1)/7)*CFG.websitePerWeek),
       linkedinTarget: Math.round(((addMonths(p.start,p.months)-p.start)/864e5)/7*CFG.linkedinPerWeek),
       linkedinDue: Math.max(0, Math.floor(((parse(upto)-p.start)/864e5+1)/7)*CFG.linkedinPerWeek), holiday:pub.length-regPub.length,
       breederShare: reg.length? br/reg.length : null, regular:reg.length, broilerMix,
@@ -797,7 +835,8 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
       {l:"Facebook reels", v:`${r.reels} / ${CFG.reelsPerMonth*M}`, g:grade(r.reels, CFG.reelsPerMonth*M, 0.85), sub:`${CFG.reelsPerMonth} a month (2 a week)`},
       {l:"Facebook photos", v:`${r.photos} / ${CFG.photosPerMonth*M}`, g:grade(r.photos, CFG.photosPerMonth*M, 0.85), sub:`${CFG.photosPerMonth} a month (2 a week)`},
       {l:"YouTube long-form", v:`${r.yt} / ${CFG.ytPerMonth*M}`, g:grade(r.yt, CFG.ytPerMonth*M, 0.5), sub:`${CFG.ytPerMonth} a month · ${r.fbLong} also on Facebook`},
-      {l:"LinkedIn photos", v:`${r.linkedin} / ${r.linkedinTarget}`, g:r.linkedinDue ? grade(r.linkedin, r.linkedinDue, 0.75) : "na", sub:`${CFG.linkedinPerWeek} a week · ${r.linkedinDue} due so far`},
+      {l:"Website articles", v:`${r.articles} / ${r.articlesTarget}`, g:r.articlesDue ? grade(r.articles, r.articlesDue, 0.75) : "na", sub:`${CFG.websitePerWeek} a week · ${r.articlesDue} due so far · counted once the website link is added`},
+      {l:"LinkedIn posts", v:`${r.linkedin} / ${r.linkedinTarget}`, g:r.linkedinDue ? grade(r.linkedin, r.linkedinDue, 0.75) : "na", sub:`${CFG.linkedinPerWeek} a week · ${r.linkedinDue} due so far`},
       {l:"Holiday posts", v:String(r.holiday), g:"na", sub:"Free, on top of the weekly output"},
       {l:"Published on schedule", v:pct(r.onSchedule), g:grade(r.onSchedule, CFG.onSchedule, 0.89), sub:"of posts due so far · Day 90 target 90%"},
       {l:"Breeder share", v:pct(r.breederShare), g:r.breederShare==null?"na":(Math.abs(r.breederShare-CFG.breederShare)<=0.08?"ok":Math.abs(r.breederShare-CFG.breederShare)<=0.15?"warn":"bad"), sub:`of ${r.regular} regular posts · plan 70 breeder / 30 broiler${r.broilerMix.length?" · broiler: "+r.broilerMix.map(([s,n])=>`${s.replace("Broiler - ","")} ${n}`).join(", "):""}`},
@@ -903,18 +942,23 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
   // ---------- form ----------
   const dlg = $("dlg"); let editing = null, prefill = null;
   $("f-type").append(...TYPES.map(t=>el("option",{value:t},t)));
-  $("f-owner").append(...PEOPLE.map(p=>el("option",{value:p.id},`${p.id} · ${p.role}`)), el("option",{value:WHOLE_TEAM},"Whole team · everyone"));
+  $("f-owners-list").append(...[WHOLE_TEAM, ...PEOPLE.map(p=>p.id)].map(n => el("label",{class:"whochip"},
+    el("input",{type:"checkbox",value:n,class:"f-who",onchange:e=>{ const boxes=[...document.querySelectorAll(".f-who")];
+      if (e.target.value===WHOLE_TEAM && e.target.checked) boxes.forEach(b=>{ if (b!==e.target) b.checked=false; });
+      if (e.target.value!==WHOLE_TEAM && e.target.checked) boxes.find(b=>b.value===WHOLE_TEAM).checked=false; }}), n)));
+  const getOwners = () => [...document.querySelectorAll(".f-who")].filter(b=>b.checked).map(b=>b.value);
+  const setOwners = list => document.querySelectorAll(".f-who").forEach(b=>{ b.checked = list.includes(b.value); });
   function fillStatuses(post, cur){ $("f-status").replaceChildren(...STATUSES.map(s=>el("option",{value:s},label(s,post)))); $("f-status").value = cur||"todo"; }
   function syncPlatformBoxes(resetDefaults){
     const t = $("f-type").value, allowed = ALLOWED_PLATFORMS[t] || [];
     for (const {k} of PLATFORMS) {
       const box = $("f-pl-"+k);
-      if (resetDefaults || t==="Long-form video") box.checked = (DEFAULT_PLATFORMS[t]||[]).includes(k);
+      if (resetDefaults || (t==="Long-form video" && k!=="website")) box.checked = (DEFAULT_PLATFORMS[t]||[]).includes(k) || (!resetDefaults && box.checked && k==="website");
       if (!allowed.includes(k)) box.checked = false;
-      box.disabled = !canWrite || !allowed.includes(k) || t==="Long-form video";
+      box.disabled = !canWrite || !allowed.includes(k) || (t==="Long-form video" && k!=="website");
       $("lw-"+k).hidden = !box.checked;
     }
-    $("f-pl-hint").textContent = t==="Long-form video" ? "Long-form always goes on YouTube and Facebook." : t==="Reel post" ? "Reels go on Facebook." : "Tick LinkedIn to post the photo there too.";
+    $("f-pl-hint").textContent = t==="Long-form video" ? "Long-form always goes on YouTube and Facebook. Tick Website to embed it there too." : t==="Reel post" ? "Reels go on Facebook." : t==="Article" ? "Articles go on the website: blog posts, case studies, SEO write-ups. Tick LinkedIn or Facebook to share them there too." : "Tick LinkedIn to post the photo there too.";
   }
   for (const {k} of PLATFORMS) $("f-pl-"+k).addEventListener("change", () => syncPlatformBoxes(false));
   function togglePost(){ const t=$("f-type").value, post = POST_TYPES.includes(t); if (post) syncPlatformBoxes(true); document.querySelectorAll(".post-only").forEach(x=>x.hidden=!post); document.querySelectorAll(".nonpost").forEach(x=>x.hidden=post); if (t==="Edit") { $("f-rev").closest("label").hidden=false; } $("f-capcut").closest("label").hidden = !(post || t==="Edit"); fillStatuses(post, $("f-status").value); }
@@ -932,14 +976,14 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     const inWeek = iso(state.week)<=todayISO() && todayISO()<=iso(addDays(state.week,6));
     $("f-title").value = v.title || "";
     $("f-type").value = v.type || "Shoot";
-    $("f-owner").value = v.owner || (state.who!=="All"?state.who:(POST_TYPES.includes(v.type)?"Anne":"Christian"));
+    setOwners(ownersOf(v).length ? ownersOf(v) : [state.who!=="All" ? state.who : (POST_TYPES.includes(v.type)?"Anne":"Christian")]);
     $("f-date").value = v.date || (inWeek ? todayISO() : iso(state.week));
     $("f-time").value = v.time || "";
     fillSegs(v.segment || "");
     $("f-cta").value = v.cta ?? ctaFor(v.segment);
     $("f-caption").value = v.caption || "";
     const links = v.links || (v.link ? {facebook:v.link} : {});
-    $("f-link").value = links.facebook || ""; $("f-link-youtube").value = links.youtube || ""; $("f-link-linkedin").value = links.linkedin || "";
+    $("f-link").value = links.facebook || ""; $("f-link-youtube").value = links.youtube || ""; $("f-link-linkedin").value = links.linkedin || ""; $("f-link-website").value = links.website || "";
     $("f-views").value = v.views ?? ""; $("f-eng").value = v.engagement ?? "";
     $("f-where").value = v.where || ""; $("f-notes").value = v.notes || "";
     $("f-drive").value = v.driveLink || ""; $("f-capcut").value = v.capcutLink || "";
@@ -967,17 +1011,19 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     if (!date) { $("f-date").focus(); toast("Pick a date"); return; }
     const num = id => { const v=$(id).value; return v===""?null:Math.max(0,Number(v)); };
     const status = $("f-status").value;
-    const body = { title, type, owner:$("f-owner").value, date, time:$("f-time").value, status, segment:$("f-seg").value, notes:$("f-notes").value.trim(),
+    const owners = getOwners();
+    if (!owners.length) { toast("Pick who it's for"); return; }
+    const body = { title, type, owners, owner: owners.includes(WHOLE_TEAM) ? WHOLE_TEAM : owners[0], date, time:$("f-time").value, status, segment:$("f-seg").value, notes:$("f-notes").value.trim(),
       revisions: num("f-rev"), needsDocJorge: $("f-dj").checked, driveLink:$("f-drive").value.trim(), capcutLink:$("f-capcut").value.trim(),
       ...(post ? { cta:$("f-cta").value.trim(), caption:$("f-caption").value.trim(), link:$("f-link").value.trim(),
         platforms: PLATFORMS.map(x=>x.k).filter(k=>$("f-pl-"+k).checked),
-        links: { ...(editing?.links||{}), facebook:$("f-link").value.trim(), youtube:$("f-link-youtube").value.trim(), linkedin:$("f-link-linkedin").value.trim() }, views:num("f-views"), engagement:num("f-eng") } : { where:$("f-where").value.trim() }) };
+        links: { ...(editing?.links||{}), facebook:$("f-link").value.trim(), youtube:$("f-link-youtube").value.trim(), linkedin:$("f-link-linkedin").value.trim(), website:$("f-link-website").value.trim() }, views:num("f-views"), engagement:num("f-eng") } : { where:$("f-where").value.trim() }) };
     $("saveBtn").disabled = true;
     try {
       const col = db.collection("activities");
       if (editing) {
         const ch = editing.status!==status ? { statusLog: {...(editing.statusLog||{}), [status]: Date.now()} } : {};
-        if (inApproval(editing.status) && status==="doing" && String(body.revisions??"")===String(editing.revisions??"")) body.revisions = (Number(editing.revisions)||0)+1;
+        if (inApproval(editing.status) && isEditing(status) && String(body.revisions??"")===String(editing.revisions??"")) body.revisions = (Number(editing.revisions)||0)+1;
         await col.doc(editing.id).update({...body, ...ch, ...stamp()}); toast("Saved");
       } else {
         const n = Number($("f-repeat").value)||1, now = Date.now(), series = n>1 ? "s"+now : null;
@@ -1030,9 +1076,9 @@ pre.report{white-space:pre-wrap;font-family:var(--f-mono);font-size:12.5px;backg
     if (!window.XLSX) { toast("The Excel export library didn't load. Reload the page and try again."); return; }
     const byDate = (a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0);
     const posts = state.items.filter(isPost).sort(byDate).map(p => ({ Week:"Week "+weekNo(p.date), Date:p.date, Day:DOW[parse(p.date).getDay()], Format:fmtLabel(p.type), Platforms:platformsOf(p).map(k=>PLATFORMS.find(x=>x.k===k).l).join(", "),
-      "Target Segment":p.segment||"", Topic:p.title||"", CTA:p.cta||"", Caption:p.caption||"", Status:label(p.status,true), Notes:p.notes||"", "Facebook link":p.links?.facebook||"", "YouTube link":p.links?.youtube||"", "LinkedIn link":p.links?.linkedin||"",
+      "Target Segment":p.segment||"", Topic:p.title||"", CTA:p.cta||"", Caption:p.caption||"", Status:label(p.status,true), Notes:p.notes||"", "Facebook link":p.links?.facebook||"", "YouTube link":p.links?.youtube||"", "LinkedIn link":p.links?.linkedin||"", "Website link":p.links?.website||"",
       Views:p.views??"", Engagement:p.engagement??"" }));
-    const acts = state.items.filter(i=>!isPost(i)).sort(byDate).map(a => ({ Date:a.date, Time:a.time||"", Type:a.type, Activity:a.title||"", Who:a.owner, Status:label(a.status,false), Segment:a.segment||"", "Location / link":a.where||"", Notes:a.notes||"" }));
+    const acts = state.items.filter(i=>!isPost(i)).sort(byDate).map(a => ({ Date:a.date, Time:a.time||"", Type:a.type, Activity:a.title||"", Who:ownerText(a), Status:label(a.status), Segment:a.segment||"", "Location / link":a.where||"", Notes:a.notes||"" }));
     const bank = state.bank.slice().sort((a,b)=>(a.n||999)-(b.n||999)).map(b => ({ "#":b.n, "Content Idea":b.idea, "Audience Segment":b.segment, "Post Type":b.pillar, "Ideal Month":b.month, Notes:b.notes, Status:b.status }));
     const ideas = state.ideas.slice().sort((a,b)=>(a.n||999)-(b.n||999)).map(i => ({ "#":i.n, Category:i.category, Idea:i.idea, "What it is":i.what, "Target Segment":i.segment, Status:i.status, "Suggested Timing":i.timing }));
     const kpis = Object.keys(state.kpis).sort().map(k => { const s=state.kpis[k]; const row = { Month:k }; for (const [f,l] of SNAP_FIELDS) row[l] = s[f]??""; if (k!==BASE_KEY && k>=CFG.trialStart.slice(0,7)) { const mr = compute({kind:"month", start:parse(k+"-01"), months:1}); row["Score /100"] = mr.score.total; row["Incentive"] = mr.score.incentive; } row.Notes = s.notes||""; return row; });
@@ -1374,7 +1420,7 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
       } else {
         const id = ("ext-"+it.platform+"-"+it.id).replace(/[^A-Za-z0-9_-]/g,"_");
         const plats = it.platform==="youtube" ? ["youtube","facebook"] : [it.platform];
-        const doc = { title:String(it.title||"").split("\n")[0].slice(0,120), type, platforms:plats, owner:"Anne", date:d, time:"", status:"done", segment:"",
+        const doc = { title:String(it.title||"").split("\n")[0].slice(0,120), type, platforms:plats, owner:"Anne", owners:["Anne"], date:d, time:"", status:"done", segment:"",
           notes:`Added automatically: published on ${it.platform==="youtube"?"YouTube":"Facebook"} but not on the calendar.`, links:{[it.platform]:it.url}, link: it.platform==="facebook"?it.url:"",
           ext:{[it.platform]:it.id}, postedOn:{[it.platform]:d}, source:"auto-"+it.platform, createdAt:now, statusLog:{done:now} };
         pool.push({...doc, id, links:{...doc.links}, ext:{...doc.ext}});
@@ -1440,7 +1486,7 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
       return x.configured ? el("span",{class:"sync-ok"}, `${name} ✓ ${x.count??0}`) : el("span",{class:"sync-off"}, `${name}: not set up`); };
     return [
       el("span",{}, syncing ? "Checking platforms…" : s.lastRun ? `Platforms checked ${new Date(s.lastRun).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}` : "Platforms not checked yet"),
-      tag("YouTube","youtube"), tag("Facebook","facebook"), insightsTag(src.insights), el("span",{class:"sync-off"},"LinkedIn: counted from the planner"),
+      tag("YouTube","youtube"), tag("Facebook","facebook"), insightsTag(src.insights), el("span",{class:"sync-off"},"LinkedIn and Website: counted from links in the planner"),
       s.lastError ? el("span",{class:"sync-err"}, s.lastError) : null,
       canWrite ? el("button",{type:"button",class:"small",disabled:syncing,onclick:()=>platformSync(true)},"Check now") : null ];
   }
@@ -1693,7 +1739,9 @@ tfoot td{border-bottom:none;font-weight:700} .total td{border-top:2px solid var(
     const subQ = (q, key) => q.onSnapshot(snap => { state[key] = snap.docs.map(d=>({id:d.id, ...d.data()})); render(); }, () => {});
     unsubs = [
       sub("activities","items", docs => docs.map(d=>{ const x=normPost({id:d.id, ...d.data()}); x.segment=normSeg(x.segment);
-        if (x.status==="approved") x.status = "jreview";          // old "Approved" → waits for Jacinto's approval
+        if (x.status==="approved") x.status = "jreview";
+        if (x.status==="doing") x.status = "cedit";              // old "Editing" → Christian Edit
+        x.owners = ownersOf(x);          // old "Approved" → waits for Jacinto's approval
         if (x.type==="On-ground activity") x.type = "Shoot";       // on-ground merged into Shoot
         return x; })),
       sub("bank","bank", docs => docs.map(d=>{ const x={id:d.id, ...d.data()}; x.segment=normSeg(x.segment); return x; })),
